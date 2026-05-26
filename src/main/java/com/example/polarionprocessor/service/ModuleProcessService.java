@@ -21,7 +21,6 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.ArrayList;
 import java.util.List;
 
 @Service
@@ -31,12 +30,13 @@ public class ModuleProcessService {
     private static final String PROCESSED_XML_FILE = "processed_module.xml";
     private static final String RESULT_JSON_FILE = "import_result.json";
     private static final String PREVIEW_CSV_FILE = "import_preview.csv";
-    private static final DateTimeFormatter JOB_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss");
+    private static final DateTimeFormatter JOB_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
     private static final DateTimeFormatter RESULT_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private final ModuleProcessorProperties properties;
     private final ModuleXmlExtractor moduleXmlExtractor;
     private final ParagraphScanner paragraphScanner;
+    private final NumberedItemGrouper numberedItemGrouper;
     private final ParagraphCandidateSelector candidateSelector;
     private final TitleGenerator titleGenerator;
     private final WorkItemIdProvider workItemIdProvider;
@@ -47,6 +47,7 @@ public class ModuleProcessService {
     public ModuleProcessService(ModuleProcessorProperties properties,
                                 ModuleXmlExtractor moduleXmlExtractor,
                                 ParagraphScanner paragraphScanner,
+                                NumberedItemGrouper numberedItemGrouper,
                                 ParagraphCandidateSelector candidateSelector,
                                 TitleGenerator titleGenerator,
                                 WorkItemIdProvider workItemIdProvider,
@@ -56,6 +57,7 @@ public class ModuleProcessService {
         this.properties = properties;
         this.moduleXmlExtractor = moduleXmlExtractor;
         this.paragraphScanner = paragraphScanner;
+        this.numberedItemGrouper = numberedItemGrouper;
         this.candidateSelector = candidateSelector;
         this.titleGenerator = titleGenerator;
         this.workItemIdProvider = workItemIdProvider;
@@ -104,7 +106,7 @@ public class ModuleProcessService {
 
             ModuleXmlContent moduleXmlContent = moduleXmlExtractor.extract(xmlContent);
             List<ParagraphInfo> paragraphs = paragraphScanner.scan(moduleXmlContent.getHtmlContent());
-            List<ImportItemResult> items = buildItems(request, moduleName, paragraphs);
+            List<ImportItemResult> items = buildItems(request, moduleName, moduleXmlContent.getHtmlContent(), paragraphs);
 
             String processedXmlContent = xmlContent;
             if (!dryRun && ReplaceMode.MOCK.equals(replaceMode)) {
@@ -120,6 +122,7 @@ public class ModuleProcessService {
                     dryRun,
                     createdAt,
                     xmlContent,
+                    paragraphs.size(),
                     items);
             importResultWriter.write(resultJsonFile, jobResult);
             importPreviewCsvWriter.write(previewCsvFile, items);
@@ -138,12 +141,20 @@ public class ModuleProcessService {
         } catch (IOException e) {
             return buildFailureResponse("FILE_WRITE_FAILED: " + e.getMessage(), jobId, moduleName, replaceMode, dryRun, jobDir);
         } catch (RuntimeException e) {
-            return buildFailureResponse("FAILED: " + e.getMessage(), jobId, moduleName, replaceMode, dryRun, jobDir);
+            return buildFailureResponse("FAILED: " + formatRuntimeError(e), jobId, moduleName, replaceMode, dryRun, jobDir);
         }
+    }
+
+    private String formatRuntimeError(RuntimeException e) {
+        if (TextUtils.hasText(e.getMessage())) {
+            return e.getClass().getSimpleName() + ": " + e.getMessage();
+        }
+        return e.getClass().getSimpleName();
     }
 
     private List<ImportItemResult> buildItems(ModuleProcessRequest request,
                                               String moduleName,
+                                              String htmlContent,
                                               List<ParagraphInfo> paragraphs) {
         int minOutlineDepth = request.getMinOutlineDepth() == null
                 ? properties.getDefaultMinOutlineDepth()
@@ -151,26 +162,18 @@ public class ModuleProcessService {
         boolean requireKeyword = request.getRequireKeyword() == null
                 ? Boolean.TRUE.equals(properties.getDefaultRequireKeyword())
                 : request.getRequireKeyword();
+        int levelTwoMinTextLength = properties.getLevelTwoMinTextLength() == null
+                ? 80
+                : properties.getLevelTwoMinTextLength();
 
-        List<ImportItemResult> items = new ArrayList<ImportItemResult>();
-        for (ParagraphInfo paragraph : paragraphs) {
-            ImportItemResult item = new ImportItemResult();
-            item.setSeq(paragraph.getSeq());
-            item.setParagraphId(paragraph.getParagraphId());
-            item.setOutlineNo(paragraph.getOutlineNo());
-            item.setSourceText(paragraph.getSourceText());
-            item.setSourceTextHash(paragraph.getSourceTextHash());
-            item.setSourceOuterHtml(paragraph.getSourceOuterHtml());
-            item.setSourceOuterHtmlHash(paragraph.getSourceOuterHtmlHash());
-            item.setParagraphKey(moduleName + "#" + paragraph.getParagraphId() + "#" + paragraph.getSourceTextHash());
-
-            candidateSelector.apply(item, minOutlineDepth, requireKeyword);
+        List<ImportItemResult> items = numberedItemGrouper.group(moduleName, htmlContent, paragraphs);
+        for (ImportItemResult item : items) {
+            candidateSelector.apply(item, minOutlineDepth, requireKeyword, levelTwoMinTextLength);
             if (Boolean.TRUE.equals(item.getCandidate())) {
                 String title = titleGenerator.generate(item, request);
                 item.setGeneratedTitle(title);
                 item.setFinalTitle(title);
             }
-            items.add(item);
         }
         return items;
     }
@@ -199,6 +202,7 @@ public class ModuleProcessService {
                                            boolean dryRun,
                                            String createdAt,
                                            String xmlContent,
+                                           int totalParagraphCount,
                                            List<ImportItemResult> items) {
         ImportJobResult result = new ImportJobResult();
         result.setJobId(jobId);
@@ -209,7 +213,8 @@ public class ModuleProcessService {
         result.setUpdatedAt(RESULT_TIME_FORMAT.format(LocalDateTime.now()));
         result.setSourceXmlHash(HashUtils.sha256(xmlContent));
         result.setItems(items);
-        result.setTotalParagraphCount(items.size());
+        result.setTotalParagraphCount(totalParagraphCount);
+        result.setTotalItemCount(items.size());
         result.setCandidateCount(countCandidates(items));
         result.setReplacedCount(countStatus(items, ItemStatus.REPLACED));
         result.setFailedCount(countStatus(items, ItemStatus.REPLACE_FAILED) + countStatus(items, ItemStatus.FAILED));
@@ -232,6 +237,7 @@ public class ModuleProcessService {
         response.setDryRun(dryRun);
         response.setReplaceMode(replaceMode.name());
         response.setTotalParagraphCount(jobResult.getTotalParagraphCount());
+        response.setTotalItemCount(jobResult.getTotalItemCount());
         response.setCandidateCount(jobResult.getCandidateCount());
         response.setReplacedCount(jobResult.getReplacedCount());
         response.setSkippedCount(jobResult.getSkippedCount());

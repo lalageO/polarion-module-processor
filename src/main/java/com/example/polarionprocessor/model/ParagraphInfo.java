@@ -9,6 +9,8 @@ public class ParagraphInfo {
     private String sourceOuterHtml;
     private String sourceTextHash;
     private String sourceOuterHtmlHash;
+    private Integer sourceStartIndex;
+    private Integer sourceEndIndex;
 
     public Integer getSeq() {
         return seq;
@@ -64,5 +66,21 @@ public class ParagraphInfo {
 
     public void setSourceOuterHtmlHash(String sourceOuterHtmlHash) {
         this.sourceOuterHtmlHash = sourceOuterHtmlHash;
+    }
+
+    public Integer getSourceStartIndex() {
+        return sourceStartIndex;
+    }
+
+    public void setSourceStartIndex(Integer sourceStartIndex) {
+        this.sourceStartIndex = sourceStartIndex;
+    }
+
+    public Integer getSourceEndIndex() {
+        return sourceEndIndex;
+    }
+
+    public void setSourceEndIndex(Integer sourceEndIndex) {
+        this.sourceEndIndex = sourceEndIndex;
     }
 }

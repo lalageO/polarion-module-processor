@@ -8,6 +8,7 @@ public class ModuleProcessResponse {
     private Boolean dryRun;
     private String replaceMode;
     private Integer totalParagraphCount;
+    private Integer totalItemCount;
     private Integer candidateCount;
     private Integer replacedCount;
     private Integer skippedCount;
@@ -72,6 +73,14 @@ public class ModuleProcessResponse {
 
     public void setTotalParagraphCount(Integer totalParagraphCount) {
         this.totalParagraphCount = totalParagraphCount;
+    }
+
+    public Integer getTotalItemCount() {
+        return totalItemCount;
+    }
+
+    public void setTotalItemCount(Integer totalItemCount) {
+        this.totalItemCount = totalItemCount;
     }
 
     public Integer getCandidateCount() {

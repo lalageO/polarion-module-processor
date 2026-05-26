@@ -1,15 +1,25 @@
 package com.example.polarionprocessor.model;
 
+import java.util.ArrayList;
+import java.util.List;
+
 public class ImportItemResult {
 
     private Integer seq;
     private String paragraphId;
+    private String startParagraphId;
+    private String endParagraphId;
+    private List<String> paragraphIds = new ArrayList<String>();
+    private Integer paragraphCount;
     private String outlineNo;
     private String paragraphKey;
     private String sourceText;
+    private String description;
     private String sourceTextHash;
     private String sourceOuterHtml;
     private String sourceOuterHtmlHash;
+    private Integer sourceStartIndex;
+    private Integer sourceEndIndex;
     private Boolean candidate;
     private String skipReason;
     private String generatedTitle;
@@ -36,6 +46,38 @@ public class ImportItemResult {
         this.paragraphId = paragraphId;
     }
 
+    public String getStartParagraphId() {
+        return startParagraphId;
+    }
+
+    public void setStartParagraphId(String startParagraphId) {
+        this.startParagraphId = startParagraphId;
+    }
+
+    public String getEndParagraphId() {
+        return endParagraphId;
+    }
+
+    public void setEndParagraphId(String endParagraphId) {
+        this.endParagraphId = endParagraphId;
+    }
+
+    public List<String> getParagraphIds() {
+        return paragraphIds;
+    }
+
+    public void setParagraphIds(List<String> paragraphIds) {
+        this.paragraphIds = paragraphIds;
+    }
+
+    public Integer getParagraphCount() {
+        return paragraphCount;
+    }
+
+    public void setParagraphCount(Integer paragraphCount) {
+        this.paragraphCount = paragraphCount;
+    }
+
     public String getOutlineNo() {
         return outlineNo;
     }
@@ -60,6 +102,14 @@ public class ImportItemResult {
         this.sourceText = sourceText;
     }
 
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
     public String getSourceTextHash() {
         return sourceTextHash;
     }
@@ -82,6 +132,22 @@ public class ImportItemResult {
 
     public void setSourceOuterHtmlHash(String sourceOuterHtmlHash) {
         this.sourceOuterHtmlHash = sourceOuterHtmlHash;
+    }
+
+    public Integer getSourceStartIndex() {
+        return sourceStartIndex;
+    }
+
+    public void setSourceStartIndex(Integer sourceStartIndex) {
+        this.sourceStartIndex = sourceStartIndex;
+    }
+
+    public Integer getSourceEndIndex() {
+        return sourceEndIndex;
+    }
+
+    public void setSourceEndIndex(Integer sourceEndIndex) {
+        this.sourceEndIndex = sourceEndIndex;
     }
 
     public Boolean getCandidate() {

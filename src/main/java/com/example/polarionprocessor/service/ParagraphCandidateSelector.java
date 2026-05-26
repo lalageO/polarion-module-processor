@@ -28,7 +28,7 @@ public class ParagraphCandidateSelector {
             "are intended to"
     );
 
-    public void apply(ImportItemResult item, int minOutlineDepth, boolean requireKeyword) {
+    public void apply(ImportItemResult item, int minOutlineDepth, boolean requireKeyword, int levelTwoMinTextLength) {
         String sourceText = item.getSourceText();
         if (!TextUtils.hasText(sourceText)) {
             skip(item, SkipReason.EMPTY_PARAGRAPH);
@@ -50,8 +50,13 @@ public class ParagraphCandidateSelector {
             }
             return;
         }
-        if (TextUtils.outlineDepth(item.getOutlineNo()) < minOutlineDepth) {
+        int outlineDepth = TextUtils.outlineDepth(item.getOutlineNo());
+        if (outlineDepth < minOutlineDepth) {
             skip(item, SkipReason.OUTLINE_DEPTH_TOO_LOW);
+            return;
+        }
+        if (outlineDepth == 2 && sourceText.length() < levelTwoMinTextLength) {
+            skip(item, SkipReason.TITLE_ONLY);
             return;
         }
         if (requireKeyword && !containsRequirementKeyword(sourceText)) {

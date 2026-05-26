@@ -10,8 +10,9 @@ public class ModuleProcessorProperties {
     private String defaultReplaceMode = "NONE";
     private String defaultMockIdPrefix = "MOCK";
     private Integer defaultMinOutlineDepth = 2;
-    private Boolean defaultRequireKeyword = true;
+    private Boolean defaultRequireKeyword = false;
     private Boolean defaultIncludeSubItems = false;
+    private Integer levelTwoMinTextLength = 80;
     private Integer titleMaxLength = 80;
     private Boolean csvWithBom = true;
 
@@ -69,6 +70,14 @@ public class ModuleProcessorProperties {
 
     public void setDefaultIncludeSubItems(Boolean defaultIncludeSubItems) {
         this.defaultIncludeSubItems = defaultIncludeSubItems;
+    }
+
+    public Integer getLevelTwoMinTextLength() {
+        return levelTwoMinTextLength;
+    }
+
+    public void setLevelTwoMinTextLength(Integer levelTwoMinTextLength) {
+        this.levelTwoMinTextLength = levelTwoMinTextLength;
     }
 
     public Integer getTitleMaxLength() {

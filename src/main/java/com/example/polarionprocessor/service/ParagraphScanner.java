@@ -4,9 +4,7 @@ import com.example.polarionprocessor.model.ParagraphInfo;
 import com.example.polarionprocessor.util.HashUtils;
 import com.example.polarionprocessor.util.TextUtils;
 import org.jsoup.Jsoup;
-import org.jsoup.nodes.Document;
 import org.jsoup.nodes.Element;
-import org.jsoup.select.Elements;
 import org.springframework.stereotype.Service;
 
 import java.util.ArrayList;
@@ -17,23 +15,21 @@ import java.util.regex.Pattern;
 @Service
 public class ParagraphScanner {
 
+    private static final Pattern PARAGRAPH_PATTERN = Pattern.compile("(?is)<p\\b[^>]*>.*?</p>");
+
     public List<ParagraphInfo> scan(String htmlContent) {
         try {
-            Document document = Jsoup.parseBodyFragment(htmlContent == null ? "" : htmlContent);
-            document.outputSettings()
-                    .prettyPrint(false)
-                    .syntax(Document.OutputSettings.Syntax.html);
-
-            Elements paragraphs = document.select("p");
             List<ParagraphInfo> results = new ArrayList<ParagraphInfo>();
+            Matcher matcher = PARAGRAPH_PATTERN.matcher(htmlContent == null ? "" : htmlContent);
             int seq = 1;
-            for (Element paragraph : paragraphs) {
+            while (matcher.find()) {
+                String sourceOuterHtml = matcher.group();
+                Element paragraph = Jsoup.parseBodyFragment(sourceOuterHtml).selectFirst("p");
+                if (paragraph == null) {
+                    continue;
+                }
                 String paragraphId = paragraph.id();
                 String sourceText = TextUtils.normalizeSpaces(paragraph.text());
-                String sourceOuterHtml = findOriginalOuterHtml(htmlContent, paragraphId);
-                if (!TextUtils.hasText(sourceOuterHtml)) {
-                    sourceOuterHtml = paragraph.outerHtml();
-                }
 
                 ParagraphInfo info = new ParagraphInfo();
                 info.setSeq(seq++);
@@ -43,24 +39,13 @@ public class ParagraphScanner {
                 info.setSourceOuterHtml(sourceOuterHtml);
                 info.setSourceTextHash(HashUtils.sha256(sourceText));
                 info.setSourceOuterHtmlHash(HashUtils.sha256(sourceOuterHtml));
+                info.setSourceStartIndex(matcher.start());
+                info.setSourceEndIndex(matcher.end());
                 results.add(info);
             }
             return results;
         } catch (RuntimeException e) {
             throw new ModuleProcessException("HTML_PARSE_FAILED", "HTML parse failed", e);
         }
-    }
-
-    private String findOriginalOuterHtml(String htmlContent, String paragraphId) {
-        if (!TextUtils.hasText(htmlContent) || !TextUtils.hasText(paragraphId)) {
-            return null;
-        }
-        Pattern pattern = Pattern.compile(
-                "(?s)<p\\b(?=[^>]*\\bid=[\"']" + Pattern.quote(paragraphId) + "[\"'])[^>]*>.*?</p>");
-        Matcher matcher = pattern.matcher(htmlContent);
-        if (!matcher.find()) {
-            return null;
-        }
-        return matcher.group();
     }
 }

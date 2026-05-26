@@ -9,3 +9,6 @@ output/
 # OS metadata
 .DS_Store
 Thumbs.db
+
+# python
+.py

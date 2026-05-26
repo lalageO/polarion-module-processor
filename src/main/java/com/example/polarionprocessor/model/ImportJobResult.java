@@ -13,6 +13,7 @@ public class ImportJobResult {
     private String updatedAt;
     private String sourceXmlHash;
     private Integer totalParagraphCount;
+    private Integer totalItemCount;
     private Integer candidateCount;
     private Integer replacedCount;
     private Integer skippedCount;
@@ -81,6 +82,14 @@ public class ImportJobResult {
 
     public void setTotalParagraphCount(Integer totalParagraphCount) {
         this.totalParagraphCount = totalParagraphCount;
+    }
+
+    public Integer getTotalItemCount() {
+        return totalItemCount;
+    }
+
+    public void setTotalItemCount(Integer totalItemCount) {
+        this.totalItemCount = totalItemCount;
     }
 
     public Integer getCandidateCount() {

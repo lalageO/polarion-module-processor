@@ -7,7 +7,8 @@ module-processor:
   default-replace-mode: NONE
   default-mock-id-prefix: MOCK
   default-min-outline-depth: 2
-  default-require-keyword: true
+  default-require-keyword: false
   default-include-sub-items: false
+  level-two-min-text-length: 80
   title-max-length: 80
   csv-with-bom: true

@@ -35,6 +35,8 @@ public class ImportPreviewCsvWriter {
                     .setHeader(
                             "seq",
                             "paragraphId",
+                            "paragraphCount",
+                            "paragraphIds",
                             "outlineNo",
                             "candidate",
                             "skipReason",
@@ -51,6 +53,8 @@ public class ImportPreviewCsvWriter {
                     printer.printRecord(
                             item.getSeq(),
                             item.getParagraphId(),
+                            item.getParagraphCount(),
+                            item.getParagraphIds(),
                             item.getOutlineNo(),
                             Boolean.TRUE.equals(item.getCandidate()) ? "YES" : "NO",
                             item.getSkipReason(),

@@ -99,9 +99,10 @@ Content-Type: multipart/form-data
 - `replaceMode`：可选，默认 `NONE`。
 - `mockIdPrefix`：可选，默认 `MOCK`。
 - `includeSubItems`：可选，默认 `false`。
-- `requireKeyword`：可选，默认 `true`。
+- `requireKeyword`：可选，默认 `false`；需要严格关键词过滤时再显式传 `true`。
 - `minOutlineDepth`：可选，默认 `2`。
 - `titleMode`：可选，默认 `RULE_BASED`。
+- 层级 2 的数字条款默认要求合并后的描述长度不少于 `level-two-min-text-length`，用于过滤短章节标题。
 
 `replaceMode` 第一版必须支持：
 
@@ -340,8 +341,9 @@ module-processor:
   default-replace-mode: NONE
   default-mock-id-prefix: MOCK
   default-min-outline-depth: 2
-  default-require-keyword: true
+  default-require-keyword: false
   default-include-sub-items: false
+  level-two-min-text-length: 80
   title-max-length: 80
   csv-with-bom: true
 ```
