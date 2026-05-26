@@ -1,0 +1,11 @@
+target/
+output/
+*.log
+
+# Local IDE metadata
+.idea/
+.vscode/
+
+# OS metadata
+.DS_Store
+Thumbs.db

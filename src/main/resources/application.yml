@@ -1,0 +1,13 @@
+server:
+  port: 8080
+
+module-processor:
+  output-dir: output
+  default-module-name: unknown-module
+  default-replace-mode: NONE
+  default-mock-id-prefix: MOCK
+  default-min-outline-depth: 2
+  default-require-keyword: true
+  default-include-sub-items: false
+  title-max-length: 80
+  csv-with-bom: true
