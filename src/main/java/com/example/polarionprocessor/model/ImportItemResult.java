@@ -3,31 +3,81 @@ package com.example.polarionprocessor.model;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * One importable work item candidate after paragraph grouping and candidate selection.
+ */
 public class ImportItemResult {
 
+    /** Position in the generated item list. */
     private Integer seq;
+
+    /** Anchor paragraph id; this is the first paragraph in the grouped block. */
     private String paragraphId;
+
+    /** First paragraph id included in this item block. */
     private String startParagraphId;
+
+    /** Last paragraph id included in this item block. */
     private String endParagraphId;
+
+    /** All paragraph ids included in this item block, used for preview and troubleshooting. */
     private List<String> paragraphIds = new ArrayList<String>();
+
+    /** Number of original <p> nodes included in this item block. */
     private Integer paragraphCount;
+
+    /** Numeric clause number of the anchor paragraph, for example 2.2. */
     private String outlineNo;
+
+    /** Stable local key composed from module name, anchor paragraph id, and text hash. */
     private String paragraphKey;
+
+    /** Full grouped description text used by title generation and later Work Item creation. */
     private String sourceText;
+
+    /** Alias of sourceText kept for the later Polarion Work Item description field. */
     private String description;
+
+    /** SHA-256 of sourceText. */
     private String sourceTextHash;
+
+    /** Exact original HTML range covering all paragraphs in this item block. */
     private String sourceOuterHtml;
+
+    /** SHA-256 of sourceOuterHtml. */
     private String sourceOuterHtmlHash;
+
+    /** Start offset of sourceOuterHtml inside the original CDATA HTML string. */
     private Integer sourceStartIndex;
+
+    /** End offset of sourceOuterHtml inside the original CDATA HTML string. */
     private Integer sourceEndIndex;
+
+    /** Whether this grouped item should be replaced or imported. */
     private Boolean candidate;
+
+    /** Machine-readable reason when candidate is false. */
     private String skipReason;
+
+    /** Title suggested by the configured title generator. */
     private String generatedTitle;
+
+    /** Title to use when creating the Work Item; currently equal to generatedTitle. */
     private String finalTitle;
+
+    /** Mock or real Polarion Work Item id, for example FDP-000001. */
     private String workItemId;
+
+    /** HTML fragment that replaces sourceOuterHtml in mock mode. */
     private String replacementHtml;
+
+    /** Current item processing status. */
     private String status;
+
+    /** Machine-readable error code for this item. */
     private String errorCode;
+
+    /** Human-readable error message for this item. */
     private String errorMessage;
 
     public Integer getSeq() {

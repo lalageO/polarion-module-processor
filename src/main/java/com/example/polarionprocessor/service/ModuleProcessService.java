@@ -23,6 +23,9 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 
+/**
+ * Orchestrates one module.xml upload from file persistence through scan, grouping, preview output, and mock replacement.
+ */
 @Service
 public class ModuleProcessService {
 
@@ -66,6 +69,9 @@ public class ModuleProcessService {
         this.importPreviewCsvWriter = importPreviewCsvWriter;
     }
 
+    /**
+     * Main entry point used by the controller for one uploaded module.xml.
+     */
     public ModuleProcessResponse process(ModuleProcessRequest request) {
         MultipartFile file = request.getFile();
         if (file == null || file.isEmpty()) {
@@ -106,6 +112,7 @@ public class ModuleProcessService {
 
             ModuleXmlContent moduleXmlContent = moduleXmlExtractor.extract(xmlContent);
             List<ParagraphInfo> paragraphs = paragraphScanner.scan(moduleXmlContent.getHtmlContent());
+            // Item grouping is based on numeric boundaries, not one output item per physical <p>.
             List<ImportItemResult> items = buildItems(request, moduleName, moduleXmlContent.getHtmlContent(), paragraphs);
 
             String processedXmlContent = xmlContent;
@@ -152,6 +159,9 @@ public class ModuleProcessService {
         return e.getClass().getSimpleName();
     }
 
+    /**
+     * Builds grouped item records, applies candidate rules, and prepares titles for selected items.
+     */
     private List<ImportItemResult> buildItems(ModuleProcessRequest request,
                                               String moduleName,
                                               String htmlContent,
@@ -178,6 +188,9 @@ public class ModuleProcessService {
         return items;
     }
 
+    /**
+     * Assigns sequential mock Work Item ids only to selected candidates.
+     */
     private void assignMockWorkItemIds(ModuleProcessRequest request, List<ImportItemResult> items) {
         int candidateIndex = 1;
         String mockIdPrefix = TextUtils.hasText(request.getMockIdPrefix())
@@ -187,6 +200,7 @@ public class ModuleProcessService {
             if (!Boolean.TRUE.equals(item.getCandidate())) {
                 continue;
             }
+            // The provider reads the prefix from workItemId in the version-1 mock implementation.
             item.setWorkItemId(mockIdPrefix);
             String workItemId = workItemIdProvider.provide(item, candidateIndex++);
             item.setWorkItemId(workItemId);
@@ -196,6 +210,9 @@ public class ModuleProcessService {
         }
     }
 
+    /**
+     * Creates the JSON ledger object after replacement has had a chance to update item statuses.
+     */
     private ImportJobResult buildJobResult(String jobId,
                                            String moduleName,
                                            ReplaceMode replaceMode,

@@ -97,6 +97,42 @@ class ModuleProcessServiceTest {
         assertFalse(processedXmlContent.contains("If within the manufacturer"));
     }
 
+    @Test
+    void sectionHeadingStopsPreviousNumberedItem() throws Exception {
+        ModuleProcessService service = buildService();
+
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                + "<module>\n"
+                + "  <field id=\"title\">R171e2</field>\n"
+                + "  <field id=\"homePageContent\" text-type=\"text/html\"><![CDATA[\n"
+                + "    <p id=\"polarion_301\">1.2. This UN Regulation does not apply to the approval of vehicles with regard to their steering functions when those functions are already covered by another regulation.</p>\n"
+                + "    <p id=\"polarion_302\"><span>2. Definitions</span></p>\n"
+                + "    <p id=\"polarion_303\">For the purposes of this Regulation:</p>\n"
+                + "    <p id=\"polarion_304\">2.1. Driver Control Assistance System means the hardware and software collectively capable of assisting a driver in controlling vehicle motion on a sustained basis.</p>\n"
+                + "  ]]></field>\n"
+                + "</module>";
+
+        ModuleProcessRequest request = request(xml);
+        request.setDryRun(false);
+        request.setReplaceMode("MOCK");
+        request.setMockIdPrefix("FDP");
+
+        ModuleProcessResponse response = service.process(request);
+
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals(Integer.valueOf(4), response.getTotalParagraphCount());
+        assertEquals(Integer.valueOf(2), response.getTotalItemCount());
+        assertEquals(Integer.valueOf(2), response.getCandidateCount());
+        assertEquals(Integer.valueOf(2), response.getReplacedCount());
+
+        Path processedXml = tempDir.resolve(response.getJobId()).resolve("processed_module.xml");
+        String processedXmlContent = new String(Files.readAllBytes(processedXml), StandardCharsets.UTF_8);
+        assertTrue(processedXmlContent.contains("module-workitem;params=id=FDP-000001"));
+        assertTrue(processedXmlContent.contains("module-workitem;params=id=FDP-000002"));
+        assertTrue(processedXmlContent.contains("2. Definitions"));
+        assertTrue(processedXmlContent.contains("For the purposes of this Regulation:"));
+    }
+
     private ModuleProcessService buildService() {
         ModuleProcessorProperties properties = new ModuleProcessorProperties();
         properties.setOutputDir(tempDir.toString());

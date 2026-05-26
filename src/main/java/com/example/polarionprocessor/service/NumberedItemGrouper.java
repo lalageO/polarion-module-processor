@@ -9,19 +9,28 @@ import org.springframework.stereotype.Service;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Groups numbered paragraph anchors into import items.
+ */
 @Service
 public class NumberedItemGrouper {
 
+    /**
+     * Creates item blocks from paragraphs with multi-level outline numbers.
+     *
+     * A top-level section heading such as "2. Definitions" is a boundary only: it stops the
+     * previous item block, but it does not become an item by itself.
+     */
     public List<ImportItemResult> group(String moduleName, String htmlContent, List<ParagraphInfo> paragraphs) {
         List<ImportItemResult> items = new ArrayList<ImportItemResult>();
         int itemSeq = 1;
         for (int i = 0; i < paragraphs.size(); i++) {
             ParagraphInfo anchor = paragraphs.get(i);
-            if (!TextUtils.hasText(anchor.getOutlineNo())) {
+            if (!isItemAnchor(anchor)) {
                 continue;
             }
 
-            int endExclusive = findNextNumberedParagraphIndex(paragraphs, i + 1);
+            int endExclusive = findNextBoundaryIndex(paragraphs, i + 1);
             List<ParagraphInfo> blockParagraphs = paragraphs.subList(i, endExclusive);
             ImportItemResult item = buildItem(moduleName, htmlContent, itemSeq++, blockParagraphs);
             items.add(item);
@@ -29,15 +38,26 @@ public class NumberedItemGrouper {
         return items;
     }
 
-    private int findNextNumberedParagraphIndex(List<ParagraphInfo> paragraphs, int startIndex) {
+    private int findNextBoundaryIndex(List<ParagraphInfo> paragraphs, int startIndex) {
         for (int i = startIndex; i < paragraphs.size(); i++) {
-            if (TextUtils.hasText(paragraphs.get(i).getOutlineNo())) {
+            if (isGroupBoundary(paragraphs.get(i))) {
                 return i;
             }
         }
         return paragraphs.size();
     }
 
+    private boolean isItemAnchor(ParagraphInfo paragraph) {
+        return TextUtils.hasText(paragraph.getOutlineNo());
+    }
+
+    private boolean isGroupBoundary(ParagraphInfo paragraph) {
+        return TextUtils.hasText(paragraph.getOutlineNo()) || TextUtils.hasText(paragraph.getSectionNo());
+    }
+
+    /**
+     * Builds the final import item from one contiguous paragraph block.
+     */
     private ImportItemResult buildItem(String moduleName,
                                        String htmlContent,
                                        int itemSeq,

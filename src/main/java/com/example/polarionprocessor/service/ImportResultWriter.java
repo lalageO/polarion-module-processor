@@ -8,6 +8,9 @@ import org.springframework.stereotype.Service;
 import java.io.IOException;
 import java.nio.file.Path;
 
+/**
+ * Writes the machine-readable JSON ledger.
+ */
 @Service
 public class ImportResultWriter {
 
@@ -17,6 +20,9 @@ public class ImportResultWriter {
         this.objectMapper = objectMapper.copy().enable(SerializationFeature.INDENT_OUTPUT);
     }
 
+    /**
+     * Serializes import_result.json using indented JSON for easier inspection.
+     */
     public void write(Path file, ImportJobResult result) throws IOException {
         objectMapper.writeValue(file.toFile(), result);
     }

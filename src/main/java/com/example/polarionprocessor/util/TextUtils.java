@@ -5,7 +5,15 @@ import java.util.regex.Pattern;
 
 public final class TextUtils {
 
+    /**
+     * Item anchors must contain at least two numeric levels, for example 2.1 or 3.6.5.9.4.
+     */
     private static final Pattern OUTLINE_PATTERN = Pattern.compile("^\\s*(\\d+(?:\\.\\d+)+\\.?)");
+
+    /**
+     * Top-level headings such as "2. Definitions" are not item anchors, but they must end the previous item block.
+     */
+    private static final Pattern SECTION_HEADING_PATTERN = Pattern.compile("^\\s*(\\d+)\\.\\s+\\D.*");
     private static final Pattern TITLE_ONLY_PATTERN = Pattern.compile("^\\s*\\d+\\.\\s+.+");
 
     private TextUtils() {
@@ -28,6 +36,14 @@ public final class TextUtils {
             return null;
         }
         return matcher.group(1);
+    }
+
+    public static String extractSectionNo(String text) {
+        Matcher matcher = SECTION_HEADING_PATTERN.matcher(text == null ? "" : text);
+        if (!matcher.find()) {
+            return null;
+        }
+        return matcher.group(1) + ".";
     }
 
     public static boolean looksLikeTitleOnly(String text) {

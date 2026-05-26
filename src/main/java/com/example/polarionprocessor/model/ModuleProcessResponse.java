@@ -1,25 +1,64 @@
 package com.example.polarionprocessor.model;
 
+/**
+ * API response returned after processing one module.xml upload.
+ */
 public class ModuleProcessResponse {
 
+    /** Whether the whole request completed without a top-level failure. */
     private Boolean success;
+
+    /** Output job id. */
     private String jobId;
+
+    /** Resolved module name. */
     private String moduleName;
+
+    /** Whether the run was dry-run. */
     private Boolean dryRun;
+
+    /** Effective replacement mode. */
     private String replaceMode;
+
+    /** Total scanned <p> count before grouping. */
     private Integer totalParagraphCount;
+
+    /** Total grouped item count after numeric-boundary grouping. */
     private Integer totalItemCount;
+
+    /** Number of candidate items. */
     private Integer candidateCount;
+
+    /** Number of successfully replaced items. */
     private Integer replacedCount;
+
+    /** Number of skipped items. */
     private Integer skippedCount;
+
+    /** Number of failed items. */
     private Integer failedCount;
+
+    /** Relative output directory for this job. */
     private String outputDir;
+
+    /** Original XML backup file name. */
     private String originalXmlFile;
+
+    /** Processed XML file name. */
     private String processedXmlFile;
+
+    /** JSON ledger file name. */
     private String resultJsonFile;
+
+    /** CSV preview file name. */
     private String previewCsvFile;
+
+    /** Human-readable request result message. */
     private String message;
 
+    /**
+     * Creates a minimal failure response when processing cannot even start.
+     */
     public static ModuleProcessResponse failure(String message) {
         ModuleProcessResponse response = new ModuleProcessResponse();
         response.setSuccess(false);

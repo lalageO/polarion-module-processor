@@ -12,11 +12,17 @@ import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * Scans the original CDATA HTML and records paragraph positions without serializing the whole HTML fragment.
+ */
 @Service
 public class ParagraphScanner {
 
     private static final Pattern PARAGRAPH_PATTERN = Pattern.compile("(?is)<p\\b[^>]*>.*?</p>");
 
+    /**
+     * Returns one {@link ParagraphInfo} per source <p> while preserving exact source offsets for later replacement.
+     */
     public List<ParagraphInfo> scan(String htmlContent) {
         try {
             List<ParagraphInfo> results = new ArrayList<ParagraphInfo>();
@@ -36,6 +42,7 @@ public class ParagraphScanner {
                 info.setParagraphId(paragraphId);
                 info.setSourceText(sourceText);
                 info.setOutlineNo(TextUtils.extractOutlineNo(sourceText));
+                info.setSectionNo(TextUtils.extractSectionNo(sourceText));
                 info.setSourceOuterHtml(sourceOuterHtml);
                 info.setSourceTextHash(HashUtils.sha256(sourceText));
                 info.setSourceOuterHtmlHash(HashUtils.sha256(sourceOuterHtml));

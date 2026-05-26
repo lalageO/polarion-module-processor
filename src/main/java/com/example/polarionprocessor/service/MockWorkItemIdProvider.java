@@ -5,6 +5,9 @@ import com.example.polarionprocessor.model.ImportItemResult;
 import com.example.polarionprocessor.util.TextUtils;
 import org.springframework.stereotype.Service;
 
+/**
+ * Version-1 Work Item id provider that returns deterministic mock ids.
+ */
 @Service
 public class MockWorkItemIdProvider implements WorkItemIdProvider {
 
@@ -14,6 +17,9 @@ public class MockWorkItemIdProvider implements WorkItemIdProvider {
         this.properties = properties;
     }
 
+    /**
+     * Builds ids as PREFIX-000001, PREFIX-000002, and so on.
+     */
     @Override
     public String provide(ImportItemResult item, int index) {
         String prefix = item.getWorkItemId();

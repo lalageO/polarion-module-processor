@@ -13,6 +13,9 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.List;
 
+/**
+ * Writes the human-readable preview table used to review candidates and replacements.
+ */
 @Service
 public class ImportPreviewCsvWriter {
 
@@ -22,6 +25,9 @@ public class ImportPreviewCsvWriter {
         this.properties = properties;
     }
 
+    /**
+     * Writes import_preview.csv with a stable header order.
+     */
     public void write(Path file, List<ImportItemResult> items) throws IOException {
         if (file.getParent() != null) {
             Files.createDirectories(file.getParent());
@@ -29,6 +35,7 @@ public class ImportPreviewCsvWriter {
         BufferedWriter writer = Files.newBufferedWriter(file, StandardCharsets.UTF_8);
         try {
             if (Boolean.TRUE.equals(properties.getCsvWithBom())) {
+                // Excel on Windows recognizes UTF-8 more reliably when a BOM is present.
                 writer.write('\uFEFF');
             }
             CSVFormat format = CSVFormat.DEFAULT.builder()

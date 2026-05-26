@@ -11,10 +11,16 @@ import java.util.List;
 import java.util.Locale;
 import java.util.regex.Pattern;
 
+/**
+ * Applies the version-1 candidate rules to grouped paragraph items.
+ */
 @Service
 public class ParagraphCandidateSelector {
 
+    /** Polarion paragraph ids in exported module HTML usually look like polarion_162. */
     private static final Pattern PARAGRAPH_ID_PATTERN = Pattern.compile("^polarion_\\d+$");
+
+    /** Conservative keyword list used only when strict keyword filtering is requested. */
     private static final List<String> REQUIREMENT_KEYWORDS = Arrays.asList(
             "shall",
             "should",
@@ -28,6 +34,9 @@ public class ParagraphCandidateSelector {
             "are intended to"
     );
 
+    /**
+     * Marks an item as CANDIDATE or SKIPPED and fills the skip reason.
+     */
     public void apply(ImportItemResult item, int minOutlineDepth, boolean requireKeyword, int levelTwoMinTextLength) {
         String sourceText = item.getSourceText();
         if (!TextUtils.hasText(sourceText)) {
@@ -55,6 +64,7 @@ public class ParagraphCandidateSelector {
             skip(item, SkipReason.OUTLINE_DEPTH_TOO_LOW);
             return;
         }
+        // Level-2 headings can be useful, but very short ones are usually section titles rather than requirements.
         if (outlineDepth == 2 && sourceText.length() < levelTwoMinTextLength) {
             skip(item, SkipReason.TITLE_ONLY);
             return;

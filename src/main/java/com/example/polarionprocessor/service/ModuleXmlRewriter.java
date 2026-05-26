@@ -11,12 +11,19 @@ import java.util.Collections;
 import java.util.Comparator;
 import java.util.List;
 
+/**
+ * Replaces candidate item HTML ranges inside the original CDATA HTML body.
+ */
 @Service
 public class ModuleXmlRewriter {
 
+    /**
+     * Applies replacementHtml for all candidate items and rebuilds module.xml.
+     */
     public String rewrite(ModuleXmlContent moduleXmlContent, List<ImportItemResult> items) {
         StringBuilder htmlContent = new StringBuilder(moduleXmlContent.getHtmlContent());
         List<ImportItemResult> candidates = collectReplaceCandidates(items);
+        // Replace from right to left so earlier offsets remain valid after later text length changes.
         Collections.sort(candidates, new Comparator<ImportItemResult>() {
             @Override
             public int compare(ImportItemResult left, ImportItemResult right) {
@@ -37,6 +44,9 @@ public class ModuleXmlRewriter {
         return moduleXmlContent.rebuild(htmlContent.toString());
     }
 
+    /**
+     * Filters items that are selected and have a prepared replacement fragment.
+     */
     private List<ImportItemResult> collectReplaceCandidates(List<ImportItemResult> items) {
         List<ImportItemResult> candidates = new ArrayList<ImportItemResult>();
         for (ImportItemResult item : items) {
@@ -48,6 +58,9 @@ public class ModuleXmlRewriter {
         return candidates;
     }
 
+    /**
+     * Verifies that the stored source offsets still point into the current HTML buffer.
+     */
     private boolean hasValidRange(ImportItemResult item, int htmlLength) {
         return item.getSourceStartIndex() != null
                 && item.getSourceEndIndex() != null
@@ -56,6 +69,9 @@ public class ModuleXmlRewriter {
                 && item.getSourceStartIndex() < item.getSourceEndIndex();
     }
 
+    /**
+     * Records item-level replacement failure without aborting the whole job.
+     */
     private void markReplaceFailed(ImportItemResult item, String message) {
         item.setStatus(ItemStatus.REPLACE_FAILED.name());
         item.setErrorCode("PARAGRAPH_REPLACE_FAILED");

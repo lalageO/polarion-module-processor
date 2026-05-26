@@ -7,9 +7,13 @@ import com.example.polarionprocessor.model.ModuleProcessRequest;
 import com.example.polarionprocessor.util.TextUtils;
 import org.springframework.stereotype.Service;
 
+/**
+ * Local title generator used before a real LLM integration exists.
+ */
 @Service
 public class RuleBasedTitleGenerator implements TitleGenerator {
 
+    /** Number of source characters used by rule-based title modes before max title limiting. */
     private static final int SOURCE_PREFIX_LENGTH = 40;
 
     private final ModuleProcessorProperties properties;
@@ -18,6 +22,9 @@ public class RuleBasedTitleGenerator implements TitleGenerator {
         this.properties = properties;
     }
 
+    /**
+     * Generates a deterministic title from the grouped source text and request titleMode.
+     */
     @Override
     public String generate(ImportItemResult item, ModuleProcessRequest request) {
         TitleMode titleMode = TitleMode.from(request.getTitleMode());
@@ -30,6 +37,7 @@ public class RuleBasedTitleGenerator implements TitleGenerator {
             return limit(TextUtils.truncateAtWordBoundary(sourceText, SOURCE_PREFIX_LENGTH));
         }
 
+        // Default mode removes the clause number from the body and adds back a normalized prefix.
         String textWithoutOutline = TextUtils.removeLeadingOutlineNo(sourceText, item.getOutlineNo());
         String titleBody = TextUtils.truncateAtWordBoundary(textWithoutOutline, SOURCE_PREFIX_LENGTH);
         String outlineNo = item.getOutlineNo();

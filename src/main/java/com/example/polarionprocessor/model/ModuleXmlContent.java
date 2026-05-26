@@ -1,10 +1,20 @@
 package com.example.polarionprocessor.model;
 
+/**
+ * Split view of module.xml around the homePageContent CDATA body.
+ */
 public class ModuleXmlContent {
 
+    /** XML content before the CDATA HTML body. */
     private String prefix;
+
+    /** Raw HTML body inside homePageContent CDATA. */
     private String htmlContent;
+
+    /** XML content after the CDATA HTML body. */
     private String suffix;
+
+    /** Original full XML content for reference and hashing. */
     private String fullXmlContent;
 
     public String getPrefix() {
@@ -39,6 +49,9 @@ public class ModuleXmlContent {
         this.fullXmlContent = fullXmlContent;
     }
 
+    /**
+     * Rebuilds module.xml by replacing only the CDATA HTML body and preserving the surrounding XML verbatim.
+     */
     public String rebuild(String newHtmlContent) {
         return prefix + newHtmlContent + suffix;
     }

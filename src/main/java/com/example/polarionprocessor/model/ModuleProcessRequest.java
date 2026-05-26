@@ -2,16 +2,36 @@ package com.example.polarionprocessor.model;
 
 import org.springframework.web.multipart.MultipartFile;
 
+/**
+ * API-level processing parameters collected from the multipart upload request.
+ */
 public class ModuleProcessRequest {
 
+    /** Uploaded module.xml file. */
     private MultipartFile file;
+
+    /** Optional logical module name; falls back to XML title and then application default. */
     private String moduleName;
+
+    /** When true, do not perform replacement semantics. */
     private Boolean dryRun;
+
+    /** Requested replacement mode, for example NONE or MOCK. */
     private String replaceMode;
+
+    /** Prefix used by mock Work Item id generation, for example FDP. */
     private String mockIdPrefix;
+
+    /** Reserved switch for future sub-item handling. */
     private Boolean includeSubItems;
+
+    /** Whether candidates must contain requirement keywords such as shall or must. */
     private Boolean requireKeyword;
+
+    /** Minimum outline depth accepted by candidate selection. */
     private Integer minOutlineDepth;
+
+    /** Requested title generation mode. */
     private String titleMode;
 
     public MultipartFile getFile() {

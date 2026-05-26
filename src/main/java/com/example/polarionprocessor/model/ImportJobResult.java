@@ -3,21 +3,51 @@ package com.example.polarionprocessor.model;
 import java.util.ArrayList;
 import java.util.List;
 
+/**
+ * Full result ledger written to output/{jobId}/import_result.json.
+ */
 public class ImportJobResult {
 
+    /** Unique output job id, also used as the output directory name. */
     private String jobId;
+
+    /** Logical module name supplied by request or extracted from module.xml title. */
     private String moduleName;
+
+    /** Replace mode used for this run. */
     private String mode;
+
+    /** Whether this run avoided logical replacement. */
     private Boolean dryRun;
+
+    /** Local creation time formatted for human-readable output. */
     private String createdAt;
+
+    /** Local update time formatted for human-readable output. */
     private String updatedAt;
+
+    /** SHA-256 of the uploaded module.xml. */
     private String sourceXmlHash;
+
+    /** Total scanned <p> count before grouping. */
     private Integer totalParagraphCount;
+
+    /** Total grouped item count after numeric-boundary grouping. */
     private Integer totalItemCount;
+
+    /** Number of grouped items selected as candidates. */
     private Integer candidateCount;
+
+    /** Number of grouped items successfully replaced in processed_module.xml. */
     private Integer replacedCount;
+
+    /** Number of grouped items skipped by candidate selection. */
     private Integer skippedCount;
+
+    /** Number of grouped items that failed during processing or replacement. */
     private Integer failedCount;
+
+    /** Per-item details for preview, debugging, and possible later import. */
     private List<ImportItemResult> items = new ArrayList<ImportItemResult>();
 
     public String getJobId() {
