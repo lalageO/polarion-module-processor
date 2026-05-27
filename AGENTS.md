@@ -71,6 +71,7 @@ polarion-module-processor/
         ModuleProcessException.java
       polarion/
         PolarionModuleImportService.java
+        PolarionModuleUrlParser.java
         ModuleXmlDownloader.java
         PolarionWorkItemCreator.java
         HttpPolarionWorkItemCreator.java
@@ -87,6 +88,7 @@ polarion-module-processor/
         ModuleXmlContent.java
         ParagraphInfo.java
       polarion/
+        PolarionModuleLocation.java
         PolarionModuleImportRequest.java
         PolarionModuleImportResponse.java
         PolarionImportJobResult.java
@@ -442,7 +444,10 @@ mock 替换：
 ## 第二版正式链路约定
 
 - `/api/module/process` 是保留的本地调试接口，已标记为 deprecated；它继续支持上传本地 `module.xml`、`replaceMode=MOCK` 和 `mockIdPrefix`，只用于验证 XML 解析、候选识别和 mock 替换。
-- `/api/polarion/module/import` 是正式业务接口；它接收 JSON，根据 `projectId`、`moduleFolder`、`moduleName` 从 Polarion HTTP 地址下载 `module.xml`。
+- `/api/polarion/module/import` 是正式业务接口；它支持直接接收纯 URL body，也兼容带 `moduleUrl` 的 JSON，并在 Controller 层解析出 `baseUrl`、`projectId`、`moduleFolder`、`moduleName`。
+- `moduleUrl` 示例：`http://alm.freetech.com/polarion/#/project/FDP_Demo/wiki/10%20Stakeholder%20Requirement/R171e`。
+- 正式链路通过 SVN 命令拉取 `module.xml`：先 `svn co {baseUrl}/repo/{projectId}/modules/{moduleFolder}/{moduleName}/ --depth=empty`，再在 checkout 目录内执行 `svn up module.xml`。
+- SVN 用户名、密码、可执行文件名和超时时间放在 `polarion.svn` 配置下；不要在代码中硬编码真实密码。
 - 正式接口不暴露 `replaceMode`，不接受 `mockIdPrefix`，不得生成 `FDP-000001`、`MOCK-000001` 等本地假 ID。
 - 正式接口的 Work Item ID 只能来自 `PolarionWorkItemCreator` 返回的真实 Polarion API 结果；创建成功后必须立即原子写入 `import_result.json`。
 - 当前 LLM 未接入，标题继续使用 `RuleBasedTitleGenerator` 规则生成。

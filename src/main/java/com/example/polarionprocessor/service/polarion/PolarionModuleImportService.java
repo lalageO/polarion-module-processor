@@ -12,6 +12,7 @@ import com.example.polarionprocessor.model.polarion.PolarionImportFiles;
 import com.example.polarionprocessor.model.polarion.PolarionImportItemResult;
 import com.example.polarionprocessor.model.polarion.PolarionImportJobResult;
 import com.example.polarionprocessor.model.polarion.PolarionImportSummary;
+import com.example.polarionprocessor.model.polarion.PolarionModuleLocation;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportResponse;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateRequest;
@@ -51,6 +52,7 @@ public class PolarionModuleImportService {
 
     private final ModuleProcessorProperties moduleProperties;
     private final PolarionProperties polarionProperties;
+    private final PolarionModuleUrlParser moduleUrlParser;
     private final ModuleXmlDownloader moduleXmlDownloader;
     private final ModuleXmlExtractor moduleXmlExtractor;
     private final ParagraphScanner paragraphScanner;
@@ -65,6 +67,7 @@ public class PolarionModuleImportService {
 
     public PolarionModuleImportService(ModuleProcessorProperties moduleProperties,
                                        PolarionProperties polarionProperties,
+                                       PolarionModuleUrlParser moduleUrlParser,
                                        ModuleXmlDownloader moduleXmlDownloader,
                                        ModuleXmlExtractor moduleXmlExtractor,
                                        ParagraphScanner paragraphScanner,
@@ -78,6 +81,7 @@ public class PolarionModuleImportService {
                                        PolarionImportPreviewCsvWriter csvWriter) {
         this.moduleProperties = moduleProperties;
         this.polarionProperties = polarionProperties;
+        this.moduleUrlParser = moduleUrlParser;
         this.moduleXmlDownloader = moduleXmlDownloader;
         this.moduleXmlExtractor = moduleXmlExtractor;
         this.paragraphScanner = paragraphScanner;
@@ -106,7 +110,7 @@ public class PolarionModuleImportService {
         PolarionImportJobResult jobResult = buildEmptyJobResult(jobId, resolved);
         try {
             FileUtils.ensureDirectory(jobDir);
-            String xmlContent = moduleXmlDownloader.download(resolved.projectId, resolved.moduleFolder, resolved.moduleName);
+            String xmlContent = moduleXmlDownloader.download(resolved.baseUrl, resolved.projectId, resolved.moduleFolder, resolved.moduleName);
             FileUtils.writeUtf8(originalFile, xmlContent);
 
             ModuleXmlContent moduleXmlContent = moduleXmlExtractor.extract(xmlContent);
@@ -368,10 +372,14 @@ public class PolarionModuleImportService {
 
     private ResolvedRequest resolveRequest(PolarionModuleImportRequest request) {
         PolarionModuleImportRequest safeRequest = request == null ? new PolarionModuleImportRequest() : request;
+        PolarionModuleLocation location = TextUtils.hasText(safeRequest.getModuleUrl())
+                ? moduleUrlParser.parse(safeRequest.getModuleUrl())
+                : null;
         ResolvedRequest resolved = new ResolvedRequest();
-        resolved.projectId = firstText(safeRequest.getProjectId(), polarionProperties.getDefaultProjectId());
-        resolved.moduleFolder = firstText(safeRequest.getModuleFolder(), polarionProperties.getDefaultModuleFolder());
-        resolved.moduleName = firstText(safeRequest.getModuleName(), moduleProperties.getDefaultModuleName());
+        resolved.baseUrl = firstText(location == null ? safeRequest.getBaseUrl() : location.getBaseUrl(), polarionProperties.getBaseUrl());
+        resolved.projectId = firstText(location == null ? safeRequest.getProjectId() : location.getProjectId(), polarionProperties.getDefaultProjectId());
+        resolved.moduleFolder = firstText(location == null ? safeRequest.getModuleFolder() : location.getModuleFolder(), polarionProperties.getDefaultModuleFolder());
+        resolved.moduleName = firstText(location == null ? safeRequest.getModuleName() : location.getModuleName(), moduleProperties.getDefaultModuleName());
         resolved.workItemType = firstText(safeRequest.getWorkItemType(), polarionProperties.getDefaultWorkItemType());
         resolved.dryRun = safeRequest.getDryRun() == null ? false : safeRequest.getDryRun();
         resolved.requireKeyword = safeRequest.getRequireKeyword() == null
@@ -395,6 +403,7 @@ public class PolarionModuleImportService {
      * 解析后的请求参数，避免在主流程中重复处理默认值。
      */
     private static class ResolvedRequest {
+        private String baseUrl;
         private String projectId;
         private String moduleFolder;
         private String moduleName;

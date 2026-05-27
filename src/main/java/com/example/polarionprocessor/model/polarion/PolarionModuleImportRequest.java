@@ -8,6 +8,12 @@ import java.util.Map;
  */
 public class PolarionModuleImportRequest {
 
+    /** Polarion 模块页面 URL，例如 http://alm.freetech.com/polarion/#/project/FDP_Demo/wiki/10%20Stakeholder%20Requirement/R171e。 */
+    private String moduleUrl;
+
+    /** 从 moduleUrl 中解析出的站点基础地址，例如 http://alm.freetech.com。 */
+    private String baseUrl;
+
     /** Polarion 项目 id，例如 FDP_Demo。 */
     private String projectId;
 
@@ -28,6 +34,22 @@ public class PolarionModuleImportRequest {
 
     /** 传给 Work Item 创建 API 的默认扩展字段。 */
     private Map<String, Object> defaultFields = new LinkedHashMap<String, Object>();
+
+    public String getModuleUrl() {
+        return moduleUrl;
+    }
+
+    public void setModuleUrl(String moduleUrl) {
+        this.moduleUrl = moduleUrl;
+    }
+
+    public String getBaseUrl() {
+        return baseUrl;
+    }
+
+    public void setBaseUrl(String baseUrl) {
+        this.baseUrl = baseUrl;
+    }
 
     public String getProjectId() {
         return projectId;

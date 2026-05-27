@@ -25,6 +25,13 @@ polarion:
     username: ""
     password: ""
     token: ""
+  svn:
+    executable: "svn"
+    username: "polarion"
+    password: "uaorar"
+    checkout-timeout-seconds: 60
+    update-timeout-seconds: 60
+    cleanup-temp-dir: true
   work-item-api:
     enabled: false
     create-url: ""

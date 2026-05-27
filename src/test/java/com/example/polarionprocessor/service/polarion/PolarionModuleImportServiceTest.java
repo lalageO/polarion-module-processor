@@ -35,15 +35,25 @@ class PolarionModuleImportServiceTest {
     Path tempDir;
 
     @Test
-    void downloaderBuildsEncodedModuleUrl() {
+    void moduleUrlParserExtractsLocationAndDownloaderBuildsSvnUrl() {
         PolarionProperties properties = new PolarionProperties();
         properties.setBaseUrl("http://alm.freetech.com/");
         ModuleXmlDownloader downloader = new ModuleXmlDownloader(properties);
+        PolarionModuleUrlParser parser = new PolarionModuleUrlParser();
 
-        String url = downloader.buildDownloadUrl("FDP_Demo", "10 Stakeholder Requirement", "R171e2");
+        com.example.polarionprocessor.model.polarion.PolarionModuleLocation location = parser.parse(
+                "http://alm.freetech.com/polarion/#/project/FDP_Demo/wiki/10%20Stakeholder%20Requirement/R171e");
+        String url = downloader.buildSvnModuleUrl(
+                location.getBaseUrl(),
+                location.getProjectId(),
+                location.getModuleFolder(),
+                location.getModuleName());
 
-        assertEquals("http://alm.freetech.com/polarion/svnwebclient/fileContent.jsp?url="
-                + "FDP_Demo%2Fmodules%2F10%20Stakeholder%20Requirement%2FR171e2%2Fmodule.xml", url);
+        assertEquals("http://alm.freetech.com", location.getBaseUrl());
+        assertEquals("FDP_Demo", location.getProjectId());
+        assertEquals("10 Stakeholder Requirement", location.getModuleFolder());
+        assertEquals("R171e", location.getModuleName());
+        assertEquals("http://alm.freetech.com/repo/FDP_Demo/modules/10 Stakeholder Requirement/R171e/", url);
     }
 
     @Test
@@ -152,6 +162,7 @@ class PolarionModuleImportServiceTest {
         return new PolarionModuleImportService(
                 moduleProperties,
                 polarionProperties,
+                new PolarionModuleUrlParser(),
                 downloader,
                 new ModuleXmlExtractor(),
                 new ParagraphScanner(),
@@ -167,9 +178,7 @@ class PolarionModuleImportServiceTest {
 
     private PolarionModuleImportRequest request(boolean dryRun) {
         PolarionModuleImportRequest request = new PolarionModuleImportRequest();
-        request.setProjectId("FDP_Demo");
-        request.setModuleFolder("10 Stakeholder Requirement");
-        request.setModuleName("R171e2");
+        request.setModuleUrl("http://alm.freetech.com/polarion/#/project/FDP_Demo/wiki/10%20Stakeholder%20Requirement/R171e2");
         request.setWorkItemType("stakeholderRequirement");
         request.setDryRun(dryRun);
         request.setRequireKeyword(false);
@@ -201,7 +210,11 @@ class PolarionModuleImportServiceTest {
         }
 
         @Override
-        public String download(String projectId, String moduleFolder, String moduleName) {
+        public String download(String baseUrl, String projectId, String moduleFolder, String moduleName) {
+            assertEquals("http://alm.freetech.com", baseUrl);
+            assertEquals("FDP_Demo", projectId);
+            assertEquals("10 Stakeholder Requirement", moduleFolder);
+            assertEquals("R171e2", moduleName);
             return xml;
         }
     }

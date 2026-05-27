@@ -26,6 +26,9 @@ public class PolarionProperties {
     /** 下载 module.xml 时使用的认证配置。 */
     private Auth auth = new Auth();
 
+    /** 通过 SVN 拉取 module.xml 时使用的命令配置。 */
+    private Svn svn = new Svn();
+
     /** 创建 Work Item 时使用的 API 配置。 */
     private WorkItemApi workItemApi = new WorkItemApi();
 
@@ -75,6 +78,14 @@ public class PolarionProperties {
 
     public void setAuth(Auth auth) {
         this.auth = auth;
+    }
+
+    public Svn getSvn() {
+        return svn;
+    }
+
+    public void setSvn(Svn svn) {
+        this.svn = svn;
     }
 
     public WorkItemApi getWorkItemApi() {
@@ -143,6 +154,78 @@ public class PolarionProperties {
 
         public void setToken(String token) {
             this.token = token;
+        }
+    }
+
+    /**
+     * SVN 命令行拉取 module.xml 的参数。
+     */
+    public static class Svn {
+
+        /** SVN 可执行文件名或完整路径。 */
+        private String executable = "svn";
+
+        /** SVN 用户名。 */
+        private String username = "polarion";
+
+        /** SVN 密码。 */
+        private String password = "uaorar";
+
+        /** checkout 命令超时时间。 */
+        private Integer checkoutTimeoutSeconds = 60;
+
+        /** update module.xml 命令超时时间。 */
+        private Integer updateTimeoutSeconds = 60;
+
+        /** 拉取完成后是否删除临时 checkout 目录。 */
+        private Boolean cleanupTempDir = true;
+
+        public String getExecutable() {
+            return executable;
+        }
+
+        public void setExecutable(String executable) {
+            this.executable = executable;
+        }
+
+        public String getUsername() {
+            return username;
+        }
+
+        public void setUsername(String username) {
+            this.username = username;
+        }
+
+        public String getPassword() {
+            return password;
+        }
+
+        public void setPassword(String password) {
+            this.password = password;
+        }
+
+        public Integer getCheckoutTimeoutSeconds() {
+            return checkoutTimeoutSeconds;
+        }
+
+        public void setCheckoutTimeoutSeconds(Integer checkoutTimeoutSeconds) {
+            this.checkoutTimeoutSeconds = checkoutTimeoutSeconds;
+        }
+
+        public Integer getUpdateTimeoutSeconds() {
+            return updateTimeoutSeconds;
+        }
+
+        public void setUpdateTimeoutSeconds(Integer updateTimeoutSeconds) {
+            this.updateTimeoutSeconds = updateTimeoutSeconds;
+        }
+
+        public Boolean getCleanupTempDir() {
+            return cleanupTempDir;
+        }
+
+        public void setCleanupTempDir(Boolean cleanupTempDir) {
+            this.cleanupTempDir = cleanupTempDir;
         }
     }
 
