@@ -2,7 +2,9 @@ package com.example.polarionprocessor.model.polarion;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -20,6 +22,7 @@ public class PolarionImportItemResult {
     private Boolean candidate;
     private String skipReason;
     private Map<String, Object> workItemCreateFields = new LinkedHashMap<String, Object>();
+    private List<PolarionCustomFieldRequest> customFields = new ArrayList<PolarionCustomFieldRequest>();
     private String workItemId;
     private String status;
     private String errorMessage;
@@ -113,7 +116,19 @@ public class PolarionImportItemResult {
     }
 
     public void setWorkItemCreateFields(Map<String, Object> workItemCreateFields) {
-        this.workItemCreateFields = workItemCreateFields;
+        this.workItemCreateFields = workItemCreateFields == null
+                ? new LinkedHashMap<String, Object>()
+                : workItemCreateFields;
+    }
+
+    public List<PolarionCustomFieldRequest> getCustomFields() {
+        return customFields;
+    }
+
+    public void setCustomFields(List<PolarionCustomFieldRequest> customFields) {
+        this.customFields = customFields == null
+                ? new ArrayList<PolarionCustomFieldRequest>()
+                : customFields;
     }
 
     public String getWorkItemId() {

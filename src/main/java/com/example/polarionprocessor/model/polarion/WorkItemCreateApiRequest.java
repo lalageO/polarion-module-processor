@@ -1,29 +1,28 @@
 package com.example.polarionprocessor.model.polarion;
 
-import java.util.LinkedHashMap;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Map;
 
 /**
- * 调用 Polarion API 创建 Work Item 时使用的请求对象。
+ * 公司内部 Polarion createItem HTTP 接口请求体。
  */
-public class WorkItemCreateRequest {
+public class WorkItemCreateApiRequest {
 
-    private String projectId;
+    private String polarionId;
     private String type;
     private String title;
-    private String description;
     private String authorId;
-    private Map<String, Object> fields = new LinkedHashMap<String, Object>();
+    private Boolean isNewPdp = Boolean.FALSE;
+    private Boolean onlyCreate = Boolean.TRUE;
+    private String cdescription;
     private List<PolarionCustomFieldRequest> customFields = new ArrayList<PolarionCustomFieldRequest>();
 
-    public String getProjectId() {
-        return projectId;
+    public String getPolarionId() {
+        return polarionId;
     }
 
-    public void setProjectId(String projectId) {
-        this.projectId = projectId;
+    public void setPolarionId(String polarionId) {
+        this.polarionId = polarionId;
     }
 
     public String getType() {
@@ -42,14 +41,6 @@ public class WorkItemCreateRequest {
         this.title = title;
     }
 
-    public String getDescription() {
-        return description;
-    }
-
-    public void setDescription(String description) {
-        this.description = description;
-    }
-
     public String getAuthorId() {
         return authorId;
     }
@@ -58,12 +49,28 @@ public class WorkItemCreateRequest {
         this.authorId = authorId;
     }
 
-    public Map<String, Object> getFields() {
-        return fields;
+    public Boolean getIsNewPdp() {
+        return isNewPdp;
     }
 
-    public void setFields(Map<String, Object> fields) {
-        this.fields = fields == null ? new LinkedHashMap<String, Object>() : fields;
+    public void setIsNewPdp(Boolean isNewPdp) {
+        this.isNewPdp = isNewPdp;
+    }
+
+    public Boolean getOnlyCreate() {
+        return onlyCreate;
+    }
+
+    public void setOnlyCreate(Boolean onlyCreate) {
+        this.onlyCreate = onlyCreate;
+    }
+
+    public String getCdescription() {
+        return cdescription;
+    }
+
+    public void setCdescription(String cdescription) {
+        this.cdescription = cdescription;
     }
 
     public List<PolarionCustomFieldRequest> getCustomFields() {
@@ -71,6 +78,6 @@ public class WorkItemCreateRequest {
     }
 
     public void setCustomFields(List<PolarionCustomFieldRequest> customFields) {
-        this.customFields = customFields == null ? new ArrayList<PolarionCustomFieldRequest>() : customFields;
+        this.customFields = customFields;
     }
 }

@@ -12,9 +12,11 @@ import com.example.polarionprocessor.model.polarion.PolarionImportFiles;
 import com.example.polarionprocessor.model.polarion.PolarionImportItemResult;
 import com.example.polarionprocessor.model.polarion.PolarionImportJobResult;
 import com.example.polarionprocessor.model.polarion.PolarionImportSummary;
+import com.example.polarionprocessor.model.polarion.PolarionCustomFieldRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleLocation;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportResponse;
+import com.example.polarionprocessor.model.polarion.WorkItemCreateApiRequest;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateRequest;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateResult;
 import com.example.polarionprocessor.service.shared.ModuleProcessException;
@@ -60,6 +62,7 @@ public class PolarionModuleImportService {
     private final ParagraphCandidateSelector candidateSelector;
     private final TitleGenerator titleGenerator;
     private final PolarionWorkItemCreator workItemCreator;
+    private final WorkItemCreateApiRequestBuilder apiRequestBuilder;
     private final ModuleWorkItemMacroRenderer macroRenderer;
     private final ModuleXmlRewriter moduleXmlRewriter;
     private final PolarionImportResultWriter resultWriter;
@@ -75,6 +78,7 @@ public class PolarionModuleImportService {
                                        ParagraphCandidateSelector candidateSelector,
                                        TitleGenerator titleGenerator,
                                        PolarionWorkItemCreator workItemCreator,
+                                       WorkItemCreateApiRequestBuilder apiRequestBuilder,
                                        ModuleWorkItemMacroRenderer macroRenderer,
                                        ModuleXmlRewriter moduleXmlRewriter,
                                        PolarionImportResultWriter resultWriter,
@@ -89,6 +93,7 @@ public class PolarionModuleImportService {
         this.candidateSelector = candidateSelector;
         this.titleGenerator = titleGenerator;
         this.workItemCreator = workItemCreator;
+        this.apiRequestBuilder = apiRequestBuilder;
         this.macroRenderer = macroRenderer;
         this.moduleXmlRewriter = moduleXmlRewriter;
         this.resultWriter = resultWriter;
@@ -171,6 +176,7 @@ public class PolarionModuleImportService {
             } else {
                 item.setStatus(ItemStatus.SKIPPED.name());
             }
+            item.setCustomFields(buildApiRequest(resolved, item).getCustomFields());
             items.add(item);
         }
         return items;
@@ -195,7 +201,8 @@ public class PolarionModuleImportService {
     private Map<String, Object> buildCreateFields(ResolvedRequest resolved) {
         Map<String, Object> fields = new LinkedHashMap<String, Object>();
         fields.put("type", resolved.workItemType);
-        fields.put("project", resolved.projectId);
+        fields.put("polarionId", resolved.projectId);
+        fields.put("authorId", resolved.authorId);
         if (resolved.defaultFields != null) {
             fields.putAll(resolved.defaultFields);
         }
@@ -212,9 +219,12 @@ public class PolarionModuleImportService {
             if (!Boolean.TRUE.equals(item.getCandidate())) {
                 continue;
             }
+            item.setCustomFields(buildApiRequest(resolved, item).getCustomFields());
             item.setStatus(ItemStatus.CREATING.name());
-            WorkItemCreateResult createResult = workItemCreator.createOne(buildCreateRequest(resolved, item));
-            if (Boolean.TRUE.equals(createResult.getSuccess()) && TextUtils.hasText(createResult.getWorkItemId())) {
+            WorkItemCreateResult createResult = createOneSafely(resolved, item);
+            if (createResult != null
+                    && Boolean.TRUE.equals(createResult.getSuccess())
+                    && TextUtils.hasText(createResult.getWorkItemId())) {
                 item.setWorkItemId(createResult.getWorkItemId());
                 item.setStatus(ItemStatus.CREATED.name());
                 item.setErrorMessage(null);
@@ -228,14 +238,30 @@ public class PolarionModuleImportService {
         }
     }
 
+    private WorkItemCreateResult createOneSafely(ResolvedRequest resolved, PolarionImportItemResult item) {
+        try {
+            return workItemCreator.createOne(buildCreateRequest(resolved, item));
+        } catch (RuntimeException e) {
+            return WorkItemCreateResult.failure(
+                    "POLARION_API_EXCEPTION",
+                    e.getClass().getSimpleName() + ": " + e.getMessage());
+        }
+    }
+
     private WorkItemCreateRequest buildCreateRequest(ResolvedRequest resolved, PolarionImportItemResult item) {
         WorkItemCreateRequest request = new WorkItemCreateRequest();
         request.setProjectId(resolved.projectId);
         request.setType(resolved.workItemType);
         request.setTitle(item.getTitle());
         request.setDescription(item.getDescription());
-        request.setFields(item.getWorkItemCreateFields());
+        request.setAuthorId(resolved.authorId);
+        request.setFields(resolved.defaultFields);
+        request.setCustomFields(resolved.customFields);
         return request;
+    }
+
+    private WorkItemCreateApiRequest buildApiRequest(ResolvedRequest resolved, PolarionImportItemResult item) {
+        return apiRequestBuilder.build(buildCreateRequest(resolved, item));
     }
 
     private String formatCreateError(WorkItemCreateResult createResult) {
@@ -377,10 +403,18 @@ public class PolarionModuleImportService {
                 : null;
         ResolvedRequest resolved = new ResolvedRequest();
         resolved.baseUrl = firstText(location == null ? safeRequest.getBaseUrl() : location.getBaseUrl(), polarionProperties.getBaseUrl());
-        resolved.projectId = firstText(location == null ? safeRequest.getProjectId() : location.getProjectId(), polarionProperties.getDefaultProjectId());
+        PolarionProperties.WorkItemApi api = polarionProperties.getWorkItemApi();
+        resolved.projectId = firstText(
+                location == null ? safeRequest.getProjectId() : location.getProjectId(),
+                api == null ? null : api.getDefaultPolarionId(),
+                polarionProperties.getDefaultProjectId());
         resolved.moduleFolder = firstText(location == null ? safeRequest.getModuleFolder() : location.getModuleFolder(), polarionProperties.getDefaultModuleFolder());
         resolved.moduleName = firstText(location == null ? safeRequest.getModuleName() : location.getModuleName(), moduleProperties.getDefaultModuleName());
-        resolved.workItemType = firstText(safeRequest.getWorkItemType(), polarionProperties.getDefaultWorkItemType());
+        resolved.workItemType = firstText(
+                safeRequest.getWorkItemType(),
+                api == null ? null : api.getDefaultType(),
+                polarionProperties.getDefaultWorkItemType());
+        resolved.authorId = firstText(safeRequest.getAuthorId(), api == null ? null : api.getDefaultAuthorId());
         resolved.dryRun = safeRequest.getDryRun() == null ? false : safeRequest.getDryRun();
         resolved.requireKeyword = safeRequest.getRequireKeyword() == null
                 ? Boolean.TRUE.equals(moduleProperties.getDefaultRequireKeyword())
@@ -388,11 +422,22 @@ public class PolarionModuleImportService {
         resolved.defaultFields = safeRequest.getDefaultFields() == null
                 ? new LinkedHashMap<String, Object>()
                 : safeRequest.getDefaultFields();
+        resolved.customFields = safeRequest.getCustomFields() == null
+                ? new ArrayList<PolarionCustomFieldRequest>()
+                : safeRequest.getCustomFields();
         return resolved;
     }
 
-    private String firstText(String value, String fallback) {
-        return TextUtils.hasText(value) ? value.trim() : fallback;
+    private String firstText(String... values) {
+        if (values == null) {
+            return null;
+        }
+        for (String value : values) {
+            if (TextUtils.hasText(value)) {
+                return value.trim();
+            }
+        }
+        return null;
     }
 
     private String buildJobId(String moduleName) {
@@ -408,8 +453,10 @@ public class PolarionModuleImportService {
         private String moduleFolder;
         private String moduleName;
         private String workItemType;
+        private String authorId;
         private boolean dryRun;
         private boolean requireKeyword;
         private Map<String, Object> defaultFields;
+        private List<PolarionCustomFieldRequest> customFields;
     }
 }

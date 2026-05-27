@@ -18,7 +18,7 @@ polarion:
   module-file-name: "module.xml"
   default-project-id: "FDP_Demo"
   default-module-folder: "10 Stakeholder Requirement"
-  default-work-item-type: "stakeholderRequirement"
+  default-work-item-type: "stakeholderrequirement"
   auth:
     type: "NONE"
     cookie: ""
@@ -33,7 +33,17 @@ polarion:
     update-timeout-seconds: 60
     cleanup-temp-dir: true
   work-item-api:
-    enabled: false
-    create-url: ""
+    enabled: true
+    create-url: "http://10.179.60.154:30000/workitem/ws/create"
+    default-polarion-id: "FDP_Demo"
+    default-type: "stakeholderrequirement"
+    default-author-id: "pingping.xu"
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+    default-custom-fields:
+      - id: "requirementsource"
+        multi: false
+        type: "EnumOptionId"
+        value: "Regulation"
     auth-type: "NONE"
     token: ""

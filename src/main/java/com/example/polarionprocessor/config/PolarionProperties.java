@@ -1,6 +1,10 @@
 package com.example.polarionprocessor.config;
 
+import com.example.polarionprocessor.model.polarion.PolarionCustomFieldRequest;
 import org.springframework.boot.context.properties.ConfigurationProperties;
+
+import java.util.ArrayList;
+import java.util.List;
 
 /**
  * Polarion 正式业务链路相关配置。
@@ -21,7 +25,7 @@ public class PolarionProperties {
     private String defaultModuleFolder = "10 Stakeholder Requirement";
 
     /** 正式接口未传 workItemType 时使用的默认 Work Item 类型。 */
-    private String defaultWorkItemType = "stakeholderRequirement";
+    private String defaultWorkItemType = "stakeholderrequirement";
 
     /** 下载 module.xml 时使用的认证配置。 */
     private Auth auth = new Auth();
@@ -235,10 +239,29 @@ public class PolarionProperties {
     public static class WorkItemApi {
 
         /** 是否启用真实 Work Item 创建 API。 */
-        private Boolean enabled = false;
+        private Boolean enabled = true;
 
         /** 创建 Work Item 的 HTTP 地址。 */
-        private String createUrl = "";
+        private String createUrl = "http://10.179.60.154:30000/workitem/ws/create";
+
+        /** 请求体 polarionId 的默认值。 */
+        private String defaultPolarionId = "FDP_Demo";
+
+        /** 请求体 type 的默认值。 */
+        private String defaultType = "stakeholderrequirement";
+
+        /** 请求体 authorId 的默认值。 */
+        private String defaultAuthorId = "yiming.yuan";
+
+        /** HTTP 连接超时时间。 */
+        private Integer connectTimeoutMs = 5000;
+
+        /** HTTP 读取超时时间。 */
+        private Integer readTimeoutMs = 30000;
+
+        /** 默认 customFields，先于请求字段加入。 */
+        private List<PolarionCustomFieldRequest> defaultCustomFields =
+                new ArrayList<PolarionCustomFieldRequest>();
 
         /** 创建 API 的认证类型，当前仅预留。 */
         private String authType = "NONE";
@@ -260,6 +283,56 @@ public class PolarionProperties {
 
         public void setCreateUrl(String createUrl) {
             this.createUrl = createUrl;
+        }
+
+        public String getDefaultPolarionId() {
+            return defaultPolarionId;
+        }
+
+        public void setDefaultPolarionId(String defaultPolarionId) {
+            this.defaultPolarionId = defaultPolarionId;
+        }
+
+        public String getDefaultType() {
+            return defaultType;
+        }
+
+        public void setDefaultType(String defaultType) {
+            this.defaultType = defaultType;
+        }
+
+        public String getDefaultAuthorId() {
+            return defaultAuthorId;
+        }
+
+        public void setDefaultAuthorId(String defaultAuthorId) {
+            this.defaultAuthorId = defaultAuthorId;
+        }
+
+        public Integer getConnectTimeoutMs() {
+            return connectTimeoutMs;
+        }
+
+        public void setConnectTimeoutMs(Integer connectTimeoutMs) {
+            this.connectTimeoutMs = connectTimeoutMs;
+        }
+
+        public Integer getReadTimeoutMs() {
+            return readTimeoutMs;
+        }
+
+        public void setReadTimeoutMs(Integer readTimeoutMs) {
+            this.readTimeoutMs = readTimeoutMs;
+        }
+
+        public List<PolarionCustomFieldRequest> getDefaultCustomFields() {
+            return defaultCustomFields;
+        }
+
+        public void setDefaultCustomFields(List<PolarionCustomFieldRequest> defaultCustomFields) {
+            this.defaultCustomFields = defaultCustomFields == null
+                    ? new ArrayList<PolarionCustomFieldRequest>()
+                    : defaultCustomFields;
         }
 
         public String getAuthType() {

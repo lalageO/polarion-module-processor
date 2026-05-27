@@ -3,9 +3,11 @@ package com.example.polarionprocessor.service.polarion;
 import com.example.polarionprocessor.config.ModuleProcessorProperties;
 import com.example.polarionprocessor.config.PolarionProperties;
 import com.example.polarionprocessor.enums.ItemStatus;
+import com.example.polarionprocessor.model.polarion.PolarionCustomFieldRequest;
 import com.example.polarionprocessor.model.polarion.PolarionImportItemResult;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportResponse;
+import com.example.polarionprocessor.model.polarion.WorkItemCreateApiRequest;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateRequest;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateResult;
 import com.example.polarionprocessor.service.shared.ModuleXmlExtractor;
@@ -17,19 +19,34 @@ import com.example.polarionprocessor.service.shared.RuleBasedTitleGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.springframework.http.HttpMethod;
+import org.springframework.http.MediaType;
+import org.springframework.test.web.client.MockRestServiceServer;
+import org.springframework.web.client.RestTemplate;
 
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNull;
 import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.content;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.jsonPath;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.method;
+import static org.springframework.test.web.client.match.MockRestRequestMatchers.requestTo;
+import static org.springframework.test.web.client.response.MockRestResponseCreators.withSuccess;
 
 class PolarionModuleImportServiceTest {
+
+    private static final String CREATE_URL = "http://10.179.60.154:30000/workitem/ws/create";
 
     @TempDir
     Path tempDir;
@@ -54,6 +71,86 @@ class PolarionModuleImportServiceTest {
         assertEquals("10 Stakeholder Requirement", location.getModuleFolder());
         assertEquals("R171e", location.getModuleName());
         assertEquals("http://alm.freetech.com/repo/FDP_Demo/modules/10 Stakeholder Requirement/R171e/", url);
+    }
+
+    @Test
+    void buildApiRequestMatchesDifyPayload() {
+        PolarionProperties properties = apiProperties();
+        WorkItemCreateApiRequestBuilder builder = new WorkItemCreateApiRequestBuilder(properties);
+        WorkItemCreateRequest request = createRequest();
+        Map<String, Object> fields = new LinkedHashMap<String, Object>();
+        fields.put("verificationcriteria", "测试验证：通过模拟不同驾驶场景确认能力。");
+        request.setFields(fields);
+
+        WorkItemCreateApiRequest apiRequest = builder.build(request);
+
+        assertEquals("FDP_Demo", apiRequest.getPolarionId());
+        assertEquals("stakeholderrequirement", apiRequest.getType());
+        assertEquals("11 DCAS 应具备评估驾驶员持续参与能力", apiRequest.getTitle());
+        assertEquals("yiming.yuan", apiRequest.getAuthorId());
+        assertEquals(Boolean.FALSE, apiRequest.getIsNewPdp());
+        assertEquals(Boolean.TRUE, apiRequest.getOnlyCreate());
+        assertEquals("【条款 11】原文：DCAS shall have means to evaluate continuous driver involvement.", apiRequest.getCdescription());
+        assertEquals(2, apiRequest.getCustomFields().size());
+        assertEquals("requirementsource", apiRequest.getCustomFields().get(0).getId());
+        assertEquals("EnumOptionId", apiRequest.getCustomFields().get(0).getType());
+        assertEquals("Regulation", apiRequest.getCustomFields().get(0).getValue());
+        assertEquals("verificationcriteria", apiRequest.getCustomFields().get(1).getId());
+        assertEquals("text/html", apiRequest.getCustomFields().get(1).getType());
+    }
+
+    @Test
+    void createOneSuccessReturnsDataAsWorkItemId() {
+        PolarionProperties properties = apiProperties();
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.createServer(restTemplate);
+        HttpPolarionWorkItemCreator creator = new HttpPolarionWorkItemCreator(
+                properties,
+                restTemplate,
+                new WorkItemCreateApiRequestBuilder(properties));
+        server.expect(requestTo(CREATE_URL))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.polarionId").value("FDP_Demo"))
+                .andExpect(jsonPath("$.type").value("stakeholderrequirement"))
+                .andExpect(jsonPath("$.title").value("11 DCAS 应具备评估驾驶员持续参与能力"))
+                .andExpect(jsonPath("$.authorId").value("yiming.yuan"))
+                .andExpect(jsonPath("$.isNewPdp").value(false))
+                .andExpect(jsonPath("$.onlyCreate").value(true))
+                .andExpect(jsonPath("$.cdescription").value("【条款 11】原文：DCAS shall have means to evaluate continuous driver involvement."))
+                .andExpect(jsonPath("$.description").doesNotExist())
+                .andRespond(withSuccess(
+                        "{\"code\":\"0\",\"data\":\"FDP-7018\",\"extension\":{},\"success\":true,\"msg\":\"请求成功\"}",
+                        MediaType.APPLICATION_JSON));
+
+        WorkItemCreateResult result = creator.createOne(createRequest());
+
+        assertTrue(result.getSuccess());
+        assertEquals("FDP-7018", result.getWorkItemId());
+        server.verify();
+    }
+
+    @Test
+    void createOneFailureDoesNotGenerateFakeId() {
+        PolarionProperties properties = apiProperties();
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.createServer(restTemplate);
+        HttpPolarionWorkItemCreator creator = new HttpPolarionWorkItemCreator(
+                properties,
+                restTemplate,
+                new WorkItemCreateApiRequestBuilder(properties));
+        server.expect(requestTo(CREATE_URL))
+                .andRespond(withSuccess(
+                        "{\"code\":\"CREATE_FAILED\",\"data\":null,\"success\":false,\"msg\":\"创建失败\"}",
+                        MediaType.APPLICATION_JSON));
+
+        WorkItemCreateResult result = creator.createOne(createRequest());
+
+        assertFalse(result.getSuccess());
+        assertNull(result.getWorkItemId());
+        assertEquals("CREATE_FAILED", result.getErrorCode());
+        assertTrue(result.getErrorMessage().contains("创建失败"));
+        server.verify();
     }
 
     @Test
@@ -153,6 +250,30 @@ class PolarionModuleImportServiceTest {
         assertTrue(resultJson.contains("\"status\" : \"REPLACE_FAILED\""));
     }
 
+    private PolarionProperties apiProperties() {
+        PolarionProperties properties = new PolarionProperties();
+        PolarionProperties.WorkItemApi api = properties.getWorkItemApi();
+        api.setEnabled(true);
+        api.setCreateUrl(CREATE_URL);
+        api.setDefaultPolarionId("FDP_Demo");
+        api.setDefaultType("stakeholderrequirement");
+        api.setDefaultAuthorId("yiming.yuan");
+        List<PolarionCustomFieldRequest> defaultCustomFields = new ArrayList<PolarionCustomFieldRequest>();
+        defaultCustomFields.add(new PolarionCustomFieldRequest("requirementsource", Boolean.FALSE, "EnumOptionId", "Regulation"));
+        api.setDefaultCustomFields(defaultCustomFields);
+        return properties;
+    }
+
+    private WorkItemCreateRequest createRequest() {
+        WorkItemCreateRequest request = new WorkItemCreateRequest();
+        request.setProjectId("FDP_Demo");
+        request.setType("stakeholderrequirement");
+        request.setTitle("11 DCAS 应具备评估驾驶员持续参与能力");
+        request.setAuthorId("yiming.yuan");
+        request.setDescription("【条款 11】原文：DCAS shall have means to evaluate continuous driver involvement.");
+        return request;
+    }
+
     private PolarionModuleImportService buildService(PolarionWorkItemCreator creator,
                                                      ModuleXmlDownloader downloader,
                                                      ModuleXmlRewriter rewriter) {
@@ -170,6 +291,7 @@ class PolarionModuleImportServiceTest {
                 new ParagraphCandidateSelector(),
                 new RuleBasedTitleGenerator(moduleProperties),
                 creator,
+                new WorkItemCreateApiRequestBuilder(polarionProperties),
                 new ModuleWorkItemMacroRenderer(),
                 rewriter,
                 new PolarionImportResultWriter(new ObjectMapper()),

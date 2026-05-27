@@ -1,6 +1,8 @@
 package com.example.polarionprocessor.model.polarion;
 
+import java.util.ArrayList;
 import java.util.LinkedHashMap;
+import java.util.List;
 import java.util.Map;
 
 /**
@@ -26,6 +28,9 @@ public class PolarionModuleImportRequest {
     /** 要创建的 Work Item 类型。 */
     private String workItemType;
 
+    /** 创建 Work Item 时使用的作者账号；不传时使用配置默认值。 */
+    private String authorId;
+
     /** true 时只下载、解析、识别和输出预览，不创建 Work Item，也不改写 XML。 */
     private Boolean dryRun;
 
@@ -34,6 +39,9 @@ public class PolarionModuleImportRequest {
 
     /** 传给 Work Item 创建 API 的默认扩展字段。 */
     private Map<String, Object> defaultFields = new LinkedHashMap<String, Object>();
+
+    /** 精确传给 Work Item 创建 API 的 customFields。 */
+    private List<PolarionCustomFieldRequest> customFields = new ArrayList<PolarionCustomFieldRequest>();
 
     public String getModuleUrl() {
         return moduleUrl;
@@ -83,6 +91,14 @@ public class PolarionModuleImportRequest {
         this.workItemType = workItemType;
     }
 
+    public String getAuthorId() {
+        return authorId;
+    }
+
+    public void setAuthorId(String authorId) {
+        this.authorId = authorId;
+    }
+
     public Boolean getDryRun() {
         return dryRun;
     }
@@ -104,6 +120,14 @@ public class PolarionModuleImportRequest {
     }
 
     public void setDefaultFields(Map<String, Object> defaultFields) {
-        this.defaultFields = defaultFields;
+        this.defaultFields = defaultFields == null ? new LinkedHashMap<String, Object>() : defaultFields;
+    }
+
+    public List<PolarionCustomFieldRequest> getCustomFields() {
+        return customFields;
+    }
+
+    public void setCustomFields(List<PolarionCustomFieldRequest> customFields) {
+        this.customFields = customFields == null ? new ArrayList<PolarionCustomFieldRequest>() : customFields;
     }
 }
