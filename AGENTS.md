@@ -52,28 +52,54 @@ polarion-module-processor/
     PolarionModuleProcessorApplication.java
     controller/
       ModuleProcessController.java
+      PolarionModuleImportController.java
     service/
-      ModuleProcessService.java
-      ModuleXmlExtractor.java
-      ParagraphScanner.java
-      ParagraphCandidateSelector.java
-      TitleGenerator.java
-      RuleBasedTitleGenerator.java
-      WorkItemIdProvider.java
-      MockWorkItemIdProvider.java
-      ModuleXmlRewriter.java
-      ImportResultWriter.java
-      ImportPreviewCsvWriter.java
+      debug/
+        ModuleProcessService.java
+        WorkItemIdProvider.java
+        MockWorkItemIdProvider.java
+        ImportResultWriter.java
+        ImportPreviewCsvWriter.java
+      shared/
+        ModuleXmlExtractor.java
+        ParagraphScanner.java
+        NumberedItemGrouper.java
+        ParagraphCandidateSelector.java
+        TitleGenerator.java
+        RuleBasedTitleGenerator.java
+        ModuleXmlRewriter.java
+        ModuleProcessException.java
+      polarion/
+        PolarionModuleImportService.java
+        ModuleXmlDownloader.java
+        PolarionWorkItemCreator.java
+        HttpPolarionWorkItemCreator.java
+        ModuleWorkItemMacroRenderer.java
+        PolarionImportResultWriter.java
+        PolarionImportPreviewCsvWriter.java
     model/
-      ModuleProcessRequest.java
-      ModuleProcessResponse.java
-      ImportJobResult.java
-      ImportItemResult.java
-      ParagraphInfo.java
+      debug/
+        ModuleProcessRequest.java
+        ModuleProcessResponse.java
+        ImportJobResult.java
+      shared/
+        ImportItemResult.java
+        ModuleXmlContent.java
+        ParagraphInfo.java
+      polarion/
+        PolarionModuleImportRequest.java
+        PolarionModuleImportResponse.java
+        PolarionImportJobResult.java
+        PolarionImportItemResult.java
+        PolarionImportFiles.java
+        PolarionImportSummary.java
+        WorkItemCreateRequest.java
+        WorkItemCreateResult.java
     enums/
       ReplaceMode.java
       ItemStatus.java
       SkipReason.java
+      JobStatus.java
     util/
       HashUtils.java
       FileUtils.java
@@ -81,6 +107,13 @@ polarion-module-processor/
   src/main/resources/
     application.yml
 ```
+
+当前代码按链路拆分包：
+
+- `model.debug`、`service.debug`：第一版本地上传调试链路，只服务 `/api/module/process`。
+- `model.polarion`、`service.polarion`：第二版正式 Polarion 导入链路，只服务 `/api/polarion/module/import`。
+- `model.shared`、`service.shared`：两条链路复用的 XML 提取、段落扫描、数字条款聚合、候选筛选、标题生成和 CDATA 重写能力。
+- 后续新增代码优先放入对应链路包；只有确实被新旧两条链路共同使用的类，才放入 `shared`。
 
 ## API 约定
 
@@ -405,3 +438,13 @@ mock 替换：
 - 生成或修改示例 XML 时不要提交真实敏感数据。
 - 输出目录 `output/` 属于运行产物，后续项目初始化时应加入 `.gitignore`。
 - Windows PowerShell 可能显示中文文件名或内容乱码，优先用 UTF-8 读取验证真实文件内容。
+
+## 第二版正式链路约定
+
+- `/api/module/process` 是保留的本地调试接口，已标记为 deprecated；它继续支持上传本地 `module.xml`、`replaceMode=MOCK` 和 `mockIdPrefix`，只用于验证 XML 解析、候选识别和 mock 替换。
+- `/api/polarion/module/import` 是正式业务接口；它接收 JSON，根据 `projectId`、`moduleFolder`、`moduleName` 从 Polarion HTTP 地址下载 `module.xml`。
+- 正式接口不暴露 `replaceMode`，不接受 `mockIdPrefix`，不得生成 `FDP-000001`、`MOCK-000001` 等本地假 ID。
+- 正式接口的 Work Item ID 只能来自 `PolarionWorkItemCreator` 返回的真实 Polarion API 结果；创建成功后必须立即原子写入 `import_result.json`。
+- 当前 LLM 未接入，标题继续使用 `RuleBasedTitleGenerator` 规则生成。
+- 当前 Polarion Work Item API 具体参数未知，使用 `WorkItemCreateRequest.fields` 动态承接 `requirementsource`、`status`、`ASIL`、`CAL`、`targetVersion`、`assignee`、`reference` 等扩展字段。
+- 正式流程 dry-run 只下载、解析、识别并输出 `original_module.xml`、`import_result.json`、`import_preview.csv`，不创建 Work Item，不输出 `processed_module.xml`。

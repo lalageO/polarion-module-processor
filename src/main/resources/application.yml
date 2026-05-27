@@ -12,3 +12,21 @@ module-processor:
   level-two-min-text-length: 80
   title-max-length: 80
   csv-with-bom: true
+
+polarion:
+  base-url: "http://alm.freetech.com"
+  module-file-name: "module.xml"
+  default-project-id: "FDP_Demo"
+  default-module-folder: "10 Stakeholder Requirement"
+  default-work-item-type: "stakeholderRequirement"
+  auth:
+    type: "NONE"
+    cookie: ""
+    username: ""
+    password: ""
+    token: ""
+  work-item-api:
+    enabled: false
+    create-url: ""
+    auth-type: "NONE"
+    token: ""

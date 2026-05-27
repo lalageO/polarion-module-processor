@@ -1,12 +1,13 @@
 package com.example.polarionprocessor;
 
 import com.example.polarionprocessor.config.ModuleProcessorProperties;
+import com.example.polarionprocessor.config.PolarionProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
 
 @SpringBootApplication
-@EnableConfigurationProperties(ModuleProcessorProperties.class)
+@EnableConfigurationProperties({ModuleProcessorProperties.class, PolarionProperties.class})
 public class PolarionModuleProcessorApplication {
 
     public static void main(String[] args) {

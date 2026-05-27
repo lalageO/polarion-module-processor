@@ -1,0 +1,166 @@
+package com.example.polarionprocessor.model.polarion;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
+import java.util.LinkedHashMap;
+import java.util.Map;
+
+/**
+ * 正式导入流程输出到 JSON/CSV 的单个 item 结果。
+ */
+public class PolarionImportItemResult {
+
+    private Integer seq;
+    private String itemKey;
+    private String startParagraphId;
+    private String endParagraphId;
+    private String outlineNo;
+    private String title;
+    private String description;
+    private Boolean candidate;
+    private String skipReason;
+    private Map<String, Object> workItemCreateFields = new LinkedHashMap<String, Object>();
+    private String workItemId;
+    private String status;
+    private String errorMessage;
+
+    /** 内部替换用 HTML，正式 JSON 不输出。 */
+    @JsonIgnore
+    private String replacementHtml;
+
+    /** 内部替换用起始偏移，正式 JSON 不输出。 */
+    @JsonIgnore
+    private Integer sourceStartIndex;
+
+    /** 内部替换用结束偏移，正式 JSON 不输出。 */
+    @JsonIgnore
+    private Integer sourceEndIndex;
+
+    public Integer getSeq() {
+        return seq;
+    }
+
+    public void setSeq(Integer seq) {
+        this.seq = seq;
+    }
+
+    public String getItemKey() {
+        return itemKey;
+    }
+
+    public void setItemKey(String itemKey) {
+        this.itemKey = itemKey;
+    }
+
+    public String getStartParagraphId() {
+        return startParagraphId;
+    }
+
+    public void setStartParagraphId(String startParagraphId) {
+        this.startParagraphId = startParagraphId;
+    }
+
+    public String getEndParagraphId() {
+        return endParagraphId;
+    }
+
+    public void setEndParagraphId(String endParagraphId) {
+        this.endParagraphId = endParagraphId;
+    }
+
+    public String getOutlineNo() {
+        return outlineNo;
+    }
+
+    public void setOutlineNo(String outlineNo) {
+        this.outlineNo = outlineNo;
+    }
+
+    public String getTitle() {
+        return title;
+    }
+
+    public void setTitle(String title) {
+        this.title = title;
+    }
+
+    public String getDescription() {
+        return description;
+    }
+
+    public void setDescription(String description) {
+        this.description = description;
+    }
+
+    public Boolean getCandidate() {
+        return candidate;
+    }
+
+    public void setCandidate(Boolean candidate) {
+        this.candidate = candidate;
+    }
+
+    public String getSkipReason() {
+        return skipReason;
+    }
+
+    public void setSkipReason(String skipReason) {
+        this.skipReason = skipReason;
+    }
+
+    public Map<String, Object> getWorkItemCreateFields() {
+        return workItemCreateFields;
+    }
+
+    public void setWorkItemCreateFields(Map<String, Object> workItemCreateFields) {
+        this.workItemCreateFields = workItemCreateFields;
+    }
+
+    public String getWorkItemId() {
+        return workItemId;
+    }
+
+    public void setWorkItemId(String workItemId) {
+        this.workItemId = workItemId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getErrorMessage() {
+        return errorMessage;
+    }
+
+    public void setErrorMessage(String errorMessage) {
+        this.errorMessage = errorMessage;
+    }
+
+    public String getReplacementHtml() {
+        return replacementHtml;
+    }
+
+    public void setReplacementHtml(String replacementHtml) {
+        this.replacementHtml = replacementHtml;
+    }
+
+    public Integer getSourceStartIndex() {
+        return sourceStartIndex;
+    }
+
+    public void setSourceStartIndex(Integer sourceStartIndex) {
+        this.sourceStartIndex = sourceStartIndex;
+    }
+
+    public Integer getSourceEndIndex() {
+        return sourceEndIndex;
+    }
+
+    public void setSourceEndIndex(Integer sourceEndIndex) {
+        this.sourceEndIndex = sourceEndIndex;
+    }
+}

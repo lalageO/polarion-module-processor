@@ -1,33 +1,33 @@
 package com.example.polarionprocessor.enums;
 
 /**
- * Stable machine-readable skip reasons for non-candidate items.
+ * 非候选 item 的稳定跳过原因，供程序和人工排查使用。
  */
 public enum SkipReason {
-    /** No visible text after normalization. */
+    /** 归一化后没有可见文本。 */
     EMPTY_PARAGRAPH,
 
-    /** Missing Polarion paragraph id. */
+    /** 缺少 Polarion 段落 id。 */
     NO_PARAGRAPH_ID,
 
-    /** Paragraph id does not match the expected polarion_N format. */
+    /** 段落 id 不符合预期的 polarion_N 格式。 */
     INVALID_PARAGRAPH_ID,
 
-    /** No multi-level numeric outline number was detected. */
+    /** 未识别到多级数字条款号。 */
     NO_OUTLINE_NO,
 
-    /** Outline depth is below the configured minimum. */
+    /** 条款层级低于配置的最小层级。 */
     OUTLINE_DEPTH_TOO_LOW,
 
-    /** Keyword filtering is enabled and no requirement-like keyword was found. */
+    /** 已开启关键词过滤，但没有命中需求类关键词。 */
     NO_REQUIREMENT_KEYWORD,
 
-    /** Text appears to be only a heading or is too short for a level-2 clause. */
+    /** 文本看起来只是标题，或层级 2 条款文本过短。 */
     TITLE_ONLY,
 
-    /** Reserved for table-of-contents detection. */
+    /** 预留给目录识别。 */
     TOC,
 
-    /** Reserved for future semantic requirement-likeness checks. */
+    /** 预留给后续语义层面的需求相似度判断。 */
     NOT_REQUIREMENT_LIKE
 }

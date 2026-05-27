@@ -1,8 +1,8 @@
 package com.example.polarionprocessor.controller;
 
-import com.example.polarionprocessor.model.ModuleProcessRequest;
-import com.example.polarionprocessor.model.ModuleProcessResponse;
-import com.example.polarionprocessor.service.ModuleProcessService;
+import com.example.polarionprocessor.model.debug.ModuleProcessRequest;
+import com.example.polarionprocessor.model.debug.ModuleProcessResponse;
+import com.example.polarionprocessor.service.debug.ModuleProcessService;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,6 +13,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 @RestController
 @RequestMapping("/api/module")
+@Deprecated
 public class ModuleProcessController {
 
     private final ModuleProcessService moduleProcessService;
@@ -22,6 +23,7 @@ public class ModuleProcessController {
     }
 
     @PostMapping("/process")
+    @Deprecated
     public ResponseEntity<ModuleProcessResponse> process(@RequestParam("file") MultipartFile file,
                                                          @RequestParam(value = "moduleName", required = false) String moduleName,
                                                          @RequestParam(value = "dryRun", required = false) Boolean dryRun,

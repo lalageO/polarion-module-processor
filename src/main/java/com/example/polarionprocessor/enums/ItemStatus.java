@@ -1,21 +1,33 @@
 package com.example.polarionprocessor.enums;
 
 /**
- * Per-item processing status written to JSON and CSV outputs.
+ * 单个 item 的处理状态，会写入 JSON 和 CSV 输出。
  */
 public enum ItemStatus {
-    /** Item was not selected as a candidate. */
+    /** 已识别，等待创建 Work Item。 */
+    READY,
+
+    /** 未被选为候选 item。 */
     SKIPPED,
 
-    /** Item passed candidate selection and is waiting for replacement/import. */
+    /** 已通过候选筛选，等待替换或导入。 */
     CANDIDATE,
 
-    /** Item was replaced successfully in processed_module.xml. */
+    /** 正在创建 Work Item。 */
+    CREATING,
+
+    /** Work Item 创建成功，已拿到真实 workItemId。 */
+    CREATED,
+
+    /** Work Item 创建失败。 */
+    CREATE_FAILED,
+
+    /** 已在 processed_module.xml 中完成替换。 */
     REPLACED,
 
-    /** Item was selected but could not be replaced. */
+    /** 已被选中，但替换失败。 */
     REPLACE_FAILED,
 
-    /** Reserved general failure status for later processing steps. */
+    /** 预留的通用失败状态，用于后续处理步骤。 */
     FAILED
 }
