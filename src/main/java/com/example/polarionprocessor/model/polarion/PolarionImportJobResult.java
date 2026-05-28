@@ -17,6 +17,7 @@ public class PolarionImportJobResult {
     private String status;
     private PolarionImportFiles files = new PolarionImportFiles();
     private PolarionImportSummary summary = new PolarionImportSummary();
+    private SvnCommitResult svnCommitResult;
     private List<PolarionImportItemResult> items = new ArrayList<PolarionImportItemResult>();
 
     public String getJobId() {
@@ -89,6 +90,14 @@ public class PolarionImportJobResult {
 
     public void setSummary(PolarionImportSummary summary) {
         this.summary = summary;
+    }
+
+    public SvnCommitResult getSvnCommitResult() {
+        return svnCommitResult;
+    }
+
+    public void setSvnCommitResult(SvnCommitResult svnCommitResult) {
+        this.svnCommitResult = svnCommitResult;
     }
 
     public List<PolarionImportItemResult> getItems() {

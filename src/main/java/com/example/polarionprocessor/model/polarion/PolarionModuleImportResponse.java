@@ -25,6 +25,9 @@ public class PolarionModuleImportResponse {
     private String processedXmlFile;
     private String resultJsonFile;
     private String previewCsvFile;
+    private String svnCommitStatus;
+    private String svnRevision;
+    private String svnErrorMessage;
     private String message;
 
     public static PolarionModuleImportResponse failure(String message) {
@@ -185,6 +188,30 @@ public class PolarionModuleImportResponse {
 
     public void setPreviewCsvFile(String previewCsvFile) {
         this.previewCsvFile = previewCsvFile;
+    }
+
+    public String getSvnCommitStatus() {
+        return svnCommitStatus;
+    }
+
+    public void setSvnCommitStatus(String svnCommitStatus) {
+        this.svnCommitStatus = svnCommitStatus;
+    }
+
+    public String getSvnRevision() {
+        return svnRevision;
+    }
+
+    public void setSvnRevision(String svnRevision) {
+        this.svnRevision = svnRevision;
+    }
+
+    public String getSvnErrorMessage() {
+        return svnErrorMessage;
+    }
+
+    public void setSvnErrorMessage(String svnErrorMessage) {
+        this.svnErrorMessage = svnErrorMessage;
     }
 
     public String getMessage() {

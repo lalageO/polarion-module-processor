@@ -16,6 +16,7 @@ import com.example.polarionprocessor.model.polarion.PolarionCustomFieldRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleLocation;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportResponse;
+import com.example.polarionprocessor.model.polarion.SvnCommitResult;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateApiRequest;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateRequest;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateResult;
@@ -47,7 +48,7 @@ import java.util.Map;
 public class PolarionModuleImportService {
 
     private static final String ORIGINAL_XML_FILE = "original_module.xml";
-    private static final String PROCESSED_XML_FILE = "processed_module.xml";
+    private static final String PROCESSED_XML_FILE = "module.xml";
     private static final String RESULT_JSON_FILE = "import_result.json";
     private static final String PREVIEW_CSV_FILE = "import_preview.csv";
     private static final DateTimeFormatter JOB_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
@@ -65,6 +66,7 @@ public class PolarionModuleImportService {
     private final WorkItemCreateApiRequestBuilder apiRequestBuilder;
     private final ModuleWorkItemMacroRenderer macroRenderer;
     private final ModuleXmlRewriter moduleXmlRewriter;
+    private final SvnModuleCommitter svnModuleCommitter;
     private final PolarionImportResultWriter resultWriter;
     private final PolarionImportPreviewCsvWriter csvWriter;
 
@@ -81,6 +83,7 @@ public class PolarionModuleImportService {
                                        WorkItemCreateApiRequestBuilder apiRequestBuilder,
                                        ModuleWorkItemMacroRenderer macroRenderer,
                                        ModuleXmlRewriter moduleXmlRewriter,
+                                       SvnModuleCommitter svnModuleCommitter,
                                        PolarionImportResultWriter resultWriter,
                                        PolarionImportPreviewCsvWriter csvWriter) {
         this.moduleProperties = moduleProperties;
@@ -96,6 +99,7 @@ public class PolarionModuleImportService {
         this.apiRequestBuilder = apiRequestBuilder;
         this.macroRenderer = macroRenderer;
         this.moduleXmlRewriter = moduleXmlRewriter;
+        this.svnModuleCommitter = svnModuleCommitter;
         this.resultWriter = resultWriter;
         this.csvWriter = csvWriter;
     }
@@ -134,6 +138,15 @@ public class PolarionModuleImportService {
 
             createWorkItems(resolved, jobResult, resultJsonFile, previewCsvFile);
             rewriteXml(moduleXmlContent, jobResult, processedFile);
+            SvnCommitResult svnCommitResult = commitToSvn(resolved, jobId, jobDir, processedFile);
+            jobResult.setSvnCommitResult(svnCommitResult);
+            if (!Boolean.TRUE.equals(svnCommitResult.getSuccess())) {
+                jobResult.setStatus(JobStatus.FAILED.name());
+                updateSummary(jobResult, paragraphs.size());
+                resultWriter.writeAtomic(resultJsonFile, jobResult);
+                csvWriter.write(previewCsvFile, jobResult.getItems());
+                return buildResponse(false, "SVN commit failed", jobDir, jobResult);
+            }
 
             jobResult.setStatus(hasErrors(jobResult.getItems())
                     ? JobStatus.COMPLETED_WITH_ERRORS.name()
@@ -288,6 +301,24 @@ public class PolarionModuleImportService {
         jobResult.getFiles().setProcessedXml(PROCESSED_XML_FILE);
     }
 
+    private SvnCommitResult commitToSvn(ResolvedRequest resolved,
+                                        String jobId,
+                                        Path jobDir,
+                                        Path processedFile) {
+        String commitMessage = polarionProperties.getSvn() == null
+                ? null
+                : polarionProperties.getSvn().getDefaultCommitMessage();
+        return svnModuleCommitter.commit(
+                jobId,
+                jobDir,
+                resolved.baseUrl,
+                resolved.projectId,
+                resolved.moduleFolder,
+                resolved.moduleName,
+                processedFile,
+                commitMessage);
+    }
+
     private PolarionImportJobResult buildEmptyJobResult(String jobId, ResolvedRequest resolved) {
         PolarionImportJobResult result = new PolarionImportJobResult();
         result.setJobId(jobId);
@@ -343,6 +374,11 @@ public class PolarionModuleImportService {
         response.setProcessedXmlFile(jobResult.getFiles().getProcessedXml());
         response.setResultJsonFile(RESULT_JSON_FILE);
         response.setPreviewCsvFile(PREVIEW_CSV_FILE);
+        if (jobResult.getSvnCommitResult() != null) {
+            response.setSvnCommitStatus(jobResult.getSvnCommitResult().getStatus());
+            response.setSvnRevision(jobResult.getSvnCommitResult().getRevision());
+            response.setSvnErrorMessage(jobResult.getSvnCommitResult().getErrorMessage());
+        }
         response.setMessage(message);
         return response;
     }

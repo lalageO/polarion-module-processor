@@ -31,7 +31,10 @@ polarion:
     password: "uaorar"
     checkout-timeout-seconds: 60
     update-timeout-seconds: 60
+    commit-timeout-seconds: 60
+    default-commit-message: "update module.xml"
     cleanup-temp-dir: true
+    cleanup-commit-workspace: false
   work-item-api:
     enabled: true
     create-url: "http://10.179.60.154:30000/workitem/ws/create"

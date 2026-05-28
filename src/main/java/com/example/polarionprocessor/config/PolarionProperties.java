@@ -181,8 +181,17 @@ public class PolarionProperties {
         /** update module.xml 命令超时时间。 */
         private Integer updateTimeoutSeconds = 60;
 
+        /** commit module.xml 命令超时时间。 */
+        private Integer commitTimeoutSeconds = 60;
+
+        /** 默认 SVN 提交信息。 */
+        private String defaultCommitMessage = "update module.xml";
+
         /** 拉取完成后是否删除临时 checkout 目录。 */
         private Boolean cleanupTempDir = true;
+
+        /** 提交完成后是否删除 output/{jobId}/svn-workspace。默认保留便于排查。 */
+        private Boolean cleanupCommitWorkspace = false;
 
         public String getExecutable() {
             return executable;
@@ -224,12 +233,36 @@ public class PolarionProperties {
             this.updateTimeoutSeconds = updateTimeoutSeconds;
         }
 
+        public Integer getCommitTimeoutSeconds() {
+            return commitTimeoutSeconds;
+        }
+
+        public void setCommitTimeoutSeconds(Integer commitTimeoutSeconds) {
+            this.commitTimeoutSeconds = commitTimeoutSeconds;
+        }
+
+        public String getDefaultCommitMessage() {
+            return defaultCommitMessage;
+        }
+
+        public void setDefaultCommitMessage(String defaultCommitMessage) {
+            this.defaultCommitMessage = defaultCommitMessage;
+        }
+
         public Boolean getCleanupTempDir() {
             return cleanupTempDir;
         }
 
         public void setCleanupTempDir(Boolean cleanupTempDir) {
             this.cleanupTempDir = cleanupTempDir;
+        }
+
+        public Boolean getCleanupCommitWorkspace() {
+            return cleanupCommitWorkspace;
+        }
+
+        public void setCleanupCommitWorkspace(Boolean cleanupCommitWorkspace) {
+            this.cleanupCommitWorkspace = cleanupCommitWorkspace;
         }
     }
 

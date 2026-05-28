@@ -7,6 +7,7 @@ import com.example.polarionprocessor.model.polarion.PolarionCustomFieldRequest;
 import com.example.polarionprocessor.model.polarion.PolarionImportItemResult;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportResponse;
+import com.example.polarionprocessor.model.polarion.SvnCommitResult;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateApiRequest;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateRequest;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateResult;
@@ -170,7 +171,22 @@ class PolarionModuleImportServiceTest {
         assertTrue(Files.exists(jobDir.resolve("import_result.json")));
         assertTrue(Files.exists(jobDir.resolve("import_preview.csv")));
         assertFalse(Files.exists(jobDir.resolve("processed_module.xml")));
+        assertFalse(Files.exists(jobDir.resolve("module.xml")));
         assertEquals(null, response.getProcessedXmlFile());
+    }
+
+    @Test
+    void processedXmlFileNameShouldBeModuleXml() throws Exception {
+        RecordingCreator creator = new RecordingCreator("FDP-7016", "FDP-7017");
+        PolarionModuleImportService service = buildService(creator, new StaticDownloader(sampleXml()), new ModuleXmlRewriter());
+
+        PolarionModuleImportResponse response = service.importModule(request(false));
+
+        Path jobDir = tempDir.resolve(response.getJobId());
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals("module.xml", response.getProcessedXmlFile());
+        assertTrue(Files.exists(jobDir.resolve("module.xml")));
+        assertFalse(Files.exists(jobDir.resolve("processed_module.xml")));
     }
 
     @Test
@@ -202,7 +218,7 @@ class PolarionModuleImportServiceTest {
         assertEquals(2, creator.getTitles().size());
         assertTrue(creator.getTitles().get(0).startsWith("5.1.1 First requirement"));
         assertTrue(creator.getTitles().get(1).startsWith("5.1.2 Second requirement"));
-        String processedXml = read(tempDir.resolve(response.getJobId()).resolve("processed_module.xml"));
+        String processedXml = read(tempDir.resolve(response.getJobId()).resolve("module.xml"));
         assertTrue(processedXml.contains("params=id=FDP-7016"));
         assertTrue(processedXml.contains("params=id=FDP-7017"));
     }
@@ -250,6 +266,26 @@ class PolarionModuleImportServiceTest {
         assertTrue(resultJson.contains("\"status\" : \"REPLACE_FAILED\""));
     }
 
+    @Test
+    void importServiceShouldCallCommitterAfterRewrite() throws Exception {
+        RecordingCreator creator = new RecordingCreator("FDP-7016", "FDP-7017");
+        RecordingCommitter committer = new RecordingCommitter(SvnCommitResult.committed("123456"));
+        PolarionModuleImportService service = buildService(
+                creator,
+                new StaticDownloader(sampleXml()),
+                new ModuleXmlRewriter(),
+                committer);
+
+        PolarionModuleImportResponse response = service.importModule(request(false));
+
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals(1, committer.getCallCount());
+        assertEquals("module.xml", committer.getProcessedModuleXml().getFileName().toString());
+        assertTrue(Files.exists(committer.getProcessedModuleXml()));
+        assertEquals(SvnCommitResult.STATUS_COMMITTED, response.getSvnCommitStatus());
+        assertEquals("123456", response.getSvnRevision());
+    }
+
     private PolarionProperties apiProperties() {
         PolarionProperties properties = new PolarionProperties();
         PolarionProperties.WorkItemApi api = properties.getWorkItemApi();
@@ -277,6 +313,13 @@ class PolarionModuleImportServiceTest {
     private PolarionModuleImportService buildService(PolarionWorkItemCreator creator,
                                                      ModuleXmlDownloader downloader,
                                                      ModuleXmlRewriter rewriter) {
+        return buildService(creator, downloader, rewriter, new RecordingCommitter(SvnCommitResult.noChange()));
+    }
+
+    private PolarionModuleImportService buildService(PolarionWorkItemCreator creator,
+                                                     ModuleXmlDownloader downloader,
+                                                     ModuleXmlRewriter rewriter,
+                                                     SvnModuleCommitter committer) {
         ModuleProcessorProperties moduleProperties = new ModuleProcessorProperties();
         moduleProperties.setOutputDir(tempDir.toString());
         PolarionProperties polarionProperties = new PolarionProperties();
@@ -294,6 +337,7 @@ class PolarionModuleImportServiceTest {
                 new WorkItemCreateApiRequestBuilder(polarionProperties),
                 new ModuleWorkItemMacroRenderer(),
                 rewriter,
+                committer,
                 new PolarionImportResultWriter(new ObjectMapper()),
                 new PolarionImportPreviewCsvWriter(moduleProperties));
     }
@@ -376,6 +420,40 @@ class PolarionModuleImportServiceTest {
 
         List<String> getTitles() {
             return titles;
+        }
+    }
+
+    private static class RecordingCommitter extends SvnModuleCommitter {
+
+        private final SvnCommitResult result;
+        private int callCount;
+        private Path processedModuleXml;
+
+        RecordingCommitter(SvnCommitResult result) {
+            super(new PolarionProperties(), new ModuleXmlDownloader(new PolarionProperties()), new SvnCommandExecutor());
+            this.result = result;
+        }
+
+        @Override
+        public SvnCommitResult commit(String jobId,
+                                      Path outputDir,
+                                      String baseUrl,
+                                      String projectId,
+                                      String moduleFolder,
+                                      String moduleName,
+                                      Path processedModuleXml,
+                                      String commitMessage) {
+            this.callCount++;
+            this.processedModuleXml = processedModuleXml;
+            return result;
+        }
+
+        int getCallCount() {
+            return callCount;
+        }
+
+        Path getProcessedModuleXml() {
+            return processedModuleXml;
         }
     }
 }
