@@ -1,5 +1,7 @@
 target/
 output/
+outputs/
+junit*/
 *.log
 
 # Local IDE metadata

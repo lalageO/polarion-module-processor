@@ -1,5 +1,7 @@
 package com.example.polarionprocessor.model.polarion;
 
+import com.fasterxml.jackson.annotation.JsonAlias;
+
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -28,7 +30,8 @@ public class PolarionModuleImportRequest {
     /** 要创建的 Work Item 类型。 */
     private String workItemType;
 
-    /** 创建 Work Item 时使用的作者账号；不传时使用配置默认值。 */
+    /** 创建 Work Item 时使用的作者账号；外部 anthorName/authorName 作为兼容别名。 */
+    @JsonAlias({"anthorName", "authorName"})
     private String authorId;
 
     /** true 时只下载、解析、识别和输出预览，不创建 Work Item，也不改写 XML。 */

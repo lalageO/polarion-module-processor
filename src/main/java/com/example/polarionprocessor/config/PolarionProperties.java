@@ -172,8 +172,8 @@ public class PolarionProperties {
         /** SVN 用户名。 */
         private String username = "polarion";
 
-        /** SVN 密码。 */
-        private String password = "uaorar";
+        /** SVN 密码。生产环境应通过外部配置提供。 */
+        private String password = "";
 
         /** checkout 命令超时时间。 */
         private Integer checkoutTimeoutSeconds = 60;

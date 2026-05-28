@@ -1,0 +1,94 @@
+# 服务器生产环境配置。
+# 目录结构：
+#   Polarion_Document2Workitem/
+#     polarion-module-processor.jar
+#     application-prod.yml
+#     outputs/
+#
+# 从 Polarion_Document2Workitem 目录启动：
+#   java -Dfile.encoding=UTF-8 -jar polarion-module-processor.jar --spring.config.location=./application-prod.yml
+
+server:
+  port: 8080
+
+module-processor:
+
+  # 任务输出根目录 Polarion_Document2Workitem/outputs/{jobId}/
+  output-dir: outputs   
+
+  # 请求和 XML 都没有提供模块名时使用的兜底模块名。
+  default-module-name: unknown-module
+
+  # 本地调试上传接口的默认值。正式 Polarion 导入链路不使用 mock 替换。
+  default-replace-mode: NONE
+  default-mock-id-prefix: MOCK
+
+  # 候选条款筛选默认配置。
+  default-min-outline-depth: 2  # 2 表示默认忽略 "5. General" 这种一级章节标题。
+  default-require-keyword: false # false 表示只要符合数字条款规则即可作为候选，不强制包含 shall/should/must 等关键词。
+  default-include-sub-items: false # 保持 false，除非后续明确调整条款分组策略。
+  level-two-min-text-length: 80 # 二级条款文本短于该长度时，倾向认为是章节标题并跳过。
+  title-max-length: 80 # 规则生成标题的最大长度。
+  csv-with-bom: true # true 表示 CSV 写入 UTF-8 BOM，方便 Windows Excel 打开不乱码。
+
+polarion:
+ 
+  base-url: "http://alm.freetech.com"
+  module-file-name: "module.xml"
+
+  # 请求或 moduleUrl 未提供这些字段时使用的默认值。
+  default-project-id: "FDP_Demo"
+  default-module-folder: "10 Stakeholder Requirement"
+  default-work-item-type: "stakeholderrequirement"
+
+  # 预留给 HTTP 下载认证方式。当前正式链路使用 SVN，保持 NONE。
+  auth:
+    type: "NONE"
+    cookie: ""
+    username: ""
+    password: ""
+    token: ""
+
+  svn:
+    # Linux 上的 SVN 可执行文件。若 svn 已在 PATH 中，保持 "svn"；否则写绝对路径，如 "/usr/bin/svn"。
+    executable: "svn"
+
+    # SVN 账号，用于 checkout、update、commit。
+    username: "polarion"
+    password: ""
+
+    checkout-timeout-seconds: 60
+    update-timeout-seconds: 60
+    commit-timeout-seconds: 60
+    default-commit-message: "update module.xml"
+
+    # 第一次下载 module.xml 使用的临时 checkout 目录，读取完成后删除。
+    cleanup-temp-dir: true
+
+    # 提交用工作副本位于 outputs/{jobId}/svn-workspace。
+    cleanup-commit-workspace: false # false 表示保留该目录便于排查；稳定后可改为 true。
+
+  work-item-api:
+    enabled: true
+    # 公司内部 createItem 接口地址。
+    create-url: "http://10.179.60.154:30000/workitem/ws/create"
+
+    # createItem 请求体默认值。
+    default-polarion-id: "FDP_Demo"
+    default-type: "stakeholderrequirement"
+    default-author-id: "pingping.xu" # 默认作者。请求字段 anthorName或 authorId 会覆盖该值。
+
+    connect-timeout-ms: 5000
+    read-timeout-ms: 30000
+
+    # 默认传给 createItem 的 customFields。
+    # reqType、verificationcriteria 等字段只有在公司接口明确要求时再添加。
+    default-custom-fields:
+      - id: "requirementsource"
+        multi: false
+        type: "EnumOptionId"
+        value: "Regulation"
+
+    # 预留给 createItem 接口认证。当前接口不使用 token 认证。
+    auth-type: "NONE"
+    token: ""

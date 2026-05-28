@@ -286,6 +286,27 @@ class PolarionModuleImportServiceTest {
         assertEquals("123456", response.getSvnRevision());
     }
 
+    @Test
+    void anthorNameShouldOverrideDefaultAuthorIdWhenCreatingWorkItem() throws Exception {
+        RecordingCreator creator = new RecordingCreator("FDP-7016", "FDP-7017");
+        PolarionModuleImportService service = buildService(creator, new StaticDownloader(sampleXml()), new ModuleXmlRewriter());
+        String requestJson = "{"
+                + "\"moduleUrl\":\"http://alm.freetech.com/polarion/#/project/FDP_Demo/wiki/10%20Stakeholder%20Requirement/R171e2\","
+                + "\"dryRun\":false,"
+                + "\"requireKeyword\":false,"
+                + "\"anthorName\":\"custom.author\""
+                + "}";
+        PolarionModuleImportRequest request = new ObjectMapper().readValue(requestJson, PolarionModuleImportRequest.class);
+
+        PolarionModuleImportResponse response = service.importModule(request);
+
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals("custom.author", request.getAuthorId());
+        assertEquals("custom.author", creator.getAuthorIds().get(0));
+        String resultJson = read(tempDir.resolve(response.getJobId()).resolve("import_result.json"));
+        assertTrue(resultJson.contains("\"authorId\" : \"custom.author\""));
+    }
+
     private PolarionProperties apiProperties() {
         PolarionProperties properties = new PolarionProperties();
         PolarionProperties.WorkItemApi api = properties.getWorkItemApi();
@@ -388,6 +409,7 @@ class PolarionModuleImportServiceTest {
     private static class RecordingCreator implements PolarionWorkItemCreator {
         private final List<WorkItemCreateResult> results;
         private final java.util.ArrayList<String> titles = new java.util.ArrayList<String>();
+        private final java.util.ArrayList<String> authorIds = new java.util.ArrayList<String>();
 
         RecordingCreator() {
             this.results = Collections.emptyList();
@@ -408,6 +430,7 @@ class PolarionModuleImportServiceTest {
         @Override
         public WorkItemCreateResult createOne(WorkItemCreateRequest request) {
             titles.add(request.getTitle());
+            authorIds.add(request.getAuthorId());
             if (titles.size() <= results.size()) {
                 return results.get(titles.size() - 1);
             }
@@ -420,6 +443,10 @@ class PolarionModuleImportServiceTest {
 
         List<String> getTitles() {
             return titles;
+        }
+
+        List<String> getAuthorIds() {
+            return authorIds;
         }
     }
 

@@ -28,7 +28,7 @@ polarion:
   svn:
     executable: "svn"
     username: "polarion"
-    password: "uaorar"
+    password: ""
     checkout-timeout-seconds: 60
     update-timeout-seconds: 60
     commit-timeout-seconds: 60
