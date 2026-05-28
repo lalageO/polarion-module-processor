@@ -25,10 +25,11 @@ class SvnModuleCommitterTest {
         FakeSvnCommandExecutor executor = new FakeSvnCommandExecutor("M       module.xml\n", "Committed revision 123456.\n");
         SvnModuleCommitter committer = buildCommitter(executor);
         Path processedModuleXml = processedModuleXml();
+        Path relativeOutputDir = tempDir.getParent().relativize(tempDir);
 
         SvnCommitResult result = committer.commit(
                 "job-1",
-                tempDir,
+                relativeOutputDir,
                 "http://alm.freetech.com",
                 "FDP_Demo",
                 "10 Stakeholder Requirement",
@@ -42,6 +43,7 @@ class SvnModuleCommitterTest {
         assertEquals("M       module.xml", result.getStatusBeforeCommit());
         assertEquals(1, executor.getCommitCount());
         assertTrue(result.getWorkspaceDir().endsWith("svn-workspace"));
+        assertTrue(Paths.get(executor.getCheckoutTarget()).isAbsolute());
     }
 
     @Test
@@ -106,6 +108,7 @@ class SvnModuleCommitterTest {
         private final List<List<String>> commands = new ArrayList<List<String>>();
         private int statusCount;
         private int commitCount;
+        private String checkoutTarget;
 
         FakeSvnCommandExecutor(String firstStatusOutput, String commitOutput) {
             this.firstStatusOutput = firstStatusOutput;
@@ -139,6 +142,10 @@ class SvnModuleCommitterTest {
             return commitCount;
         }
 
+        String getCheckoutTarget() {
+            return checkoutTarget;
+        }
+
         @SuppressWarnings("unused")
         List<List<String>> getCommands() {
             return commands;
@@ -146,6 +153,7 @@ class SvnModuleCommitterTest {
 
         private void createCheckout(String workspaceDir) {
             try {
+                this.checkoutTarget = workspaceDir;
                 Files.createDirectories(Paths.get(workspaceDir));
             } catch (Exception e) {
                 throw new IllegalStateException(e);

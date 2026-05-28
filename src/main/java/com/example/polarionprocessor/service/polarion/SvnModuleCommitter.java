@@ -46,17 +46,21 @@ public class SvnModuleCommitter {
                                   String moduleName,
                                   Path processedModuleXml,
                                   String commitMessage) {
-        Path workspaceDir = outputDir.resolve(WORKSPACE_DIR_NAME);
+        Path normalizedOutputDir = outputDir.toAbsolutePath().normalize();
+        Path workspaceDir = normalizedOutputDir.resolve(WORKSPACE_DIR_NAME);
+        Path normalizedProcessedModuleXml = processedModuleXml == null
+                ? null
+                : processedModuleXml.toAbsolutePath().normalize();
         SvnCommitResult result = SvnCommitResult.failed(null);
         result.setWorkspaceDir(toResponsePath(workspaceDir));
         try {
-            if (processedModuleXml == null || !Files.exists(processedModuleXml)) {
+            if (normalizedProcessedModuleXml == null || !Files.exists(normalizedProcessedModuleXml)) {
                 return fail(result, "Processed module.xml not found: " + processedModuleXml);
             }
-            Files.createDirectories(outputDir);
+            Files.createDirectories(normalizedOutputDir);
             String svnModuleUrl = moduleXmlDownloader.buildSvnModuleUrl(baseUrl, projectId, moduleFolder, moduleName);
             commandExecutor.run(buildCheckoutCommand(svnModuleUrl, workspaceDir),
-                    outputDir,
+                    normalizedOutputDir,
                     timeout(svnConfig().getCheckoutTimeoutSeconds(), 60),
                     "SVN_COMMIT_CHECKOUT_FAILED");
             commandExecutor.run(buildUpdateCommand(),
@@ -65,7 +69,7 @@ public class SvnModuleCommitter {
                     "SVN_COMMIT_UPDATE_FAILED");
 
             Path workspaceModuleXml = workspaceDir.resolve(properties.getModuleFileName());
-            Files.copy(processedModuleXml, workspaceModuleXml, StandardCopyOption.REPLACE_EXISTING);
+            Files.copy(normalizedProcessedModuleXml, workspaceModuleXml, StandardCopyOption.REPLACE_EXISTING);
 
             String statusBeforeCommit = normalizeStatus(commandExecutor.run(buildStatusCommand(),
                     workspaceDir,
