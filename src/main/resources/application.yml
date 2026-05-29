@@ -46,7 +46,7 @@ polarion:
     default-custom-fields: []
     project-custom-fields:
       RMT_Platform:
-        - id: "requirementsouce"
+        - id: "requirementsource"
           multi: false
           type: "EnumOptionId"
           enum-options:
@@ -56,9 +56,6 @@ polarion:
               name: "External来自外部的需求"
             - id: "Regulation"
               name: "Regulation法规需求"
-        - id: "verificationcriteria"
-          multi: false
-          type: "text/html"
         - id: "reqType"
           multi: false
           type: "EnumOptionId"
@@ -73,8 +70,11 @@ polarion:
               name: "Constraint 约束条件"
             - id: "information"
               name: "Information 信息类需求"
+        - id: "verificationcriteria"
+          multi: false
+          type: "text/html"
       RMT_Platfrom_Demo:
-        - id: "requirementsouce"
+        - id: "requirementsource"
           multi: false
           type: "EnumOptionId"
           enum-options:
@@ -84,9 +84,6 @@ polarion:
               name: "External来自外部的需求"
             - id: "Regulation"
               name: "Regulation法规需求"
-        - id: "verificationcriteria"
-          multi: false
-          type: "text/html"
         - id: "reqType"
           multi: false
           type: "EnumOptionId"
@@ -101,5 +98,8 @@ polarion:
               name: "Constraint 约束条件"
             - id: "information"
               name: "Information 信息类需求"
+        - id: "verificationcriteria"
+          multi: false
+          type: "text/html"
     auth-type: "NONE"
     token: ""

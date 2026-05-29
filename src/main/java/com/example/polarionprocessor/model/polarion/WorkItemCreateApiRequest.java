@@ -27,7 +27,7 @@ public class WorkItemCreateApiRequest {
     private Boolean isNewPdp = Boolean.FALSE;
     private Boolean onlyCreate = Boolean.TRUE;
     private String commentContent;
-    private Boolean removedLink = Boolean.FALSE;
+    private Boolean removedLink;
     @JsonProperty("cdescription")
     @JsonAlias({"cDescription"})
     private String cDescription;

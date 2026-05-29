@@ -89,7 +89,7 @@ polarion:
     # AI 或请求传入同 id 的 value 后，会复用这里的 type/enum-options 并发送最终字段。
     project-custom-fields:
       RMT_Platform:
-        - id: "requirementsouce"
+        - id: "requirementsource"
           multi: false
           type: "EnumOptionId"
           enum-options:
@@ -99,9 +99,6 @@ polarion:
               name: "External来自外部的需求"
             - id: "Regulation"
               name: "Regulation法规需求"
-        - id: "verificationcriteria"
-          multi: false
-          type: "text/html"
         - id: "reqType"
           multi: false
           type: "EnumOptionId"
@@ -116,8 +113,11 @@ polarion:
               name: "Constraint 约束条件"
             - id: "information"
               name: "Information 信息类需求"
+        - id: "verificationcriteria"
+          multi: false
+          type: "text/html"
       RMT_Platfrom_Demo:
-        - id: "requirementsouce"
+        - id: "requirementsource"
           multi: false
           type: "EnumOptionId"
           enum-options:
@@ -127,9 +127,6 @@ polarion:
               name: "External来自外部的需求"
             - id: "Regulation"
               name: "Regulation法规需求"
-        - id: "verificationcriteria"
-          multi: false
-          type: "text/html"
         - id: "reqType"
           multi: false
           type: "EnumOptionId"
@@ -144,6 +141,9 @@ polarion:
               name: "Constraint 约束条件"
             - id: "information"
               name: "Information 信息类需求"
+        - id: "verificationcriteria"
+          multi: false
+          type: "text/html"
 
     # 预留给 createItem 接口认证。当前接口不使用 token 认证。
     auth-type: "NONE"

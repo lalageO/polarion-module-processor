@@ -82,7 +82,7 @@ public class WorkItemCreateApiRequestBuilder {
         apiRequest.setIsNewPdp(safeRequest.getIsNewPdp() == null ? Boolean.FALSE : safeRequest.getIsNewPdp());
         apiRequest.setOnlyCreate(safeRequest.getOnlyCreate() == null ? Boolean.TRUE : safeRequest.getOnlyCreate());
         apiRequest.setCommentContent(safeRequest.getCommentContent());
-        apiRequest.setRemovedLink(safeRequest.getRemovedLink() == null ? Boolean.FALSE : safeRequest.getRemovedLink());
+        apiRequest.setRemovedLink(safeRequest.getRemovedLink());
         apiRequest.setCdescription(safeRequest.getDescription());
         apiRequest.setInitialEstimate(safeRequest.getInitialEstimate());
         apiRequest.setTimeSpent(safeRequest.getTimeSpent());
@@ -281,8 +281,8 @@ public class WorkItemCreateApiRequestBuilder {
             return id;
         }
         String trimmed = id.trim();
-        if ("requirementsource".equalsIgnoreCase(trimmed)) {
-            return "requirementsouce";
+        if ("requirementsouce".equalsIgnoreCase(trimmed)) {
+            return "requirementsource";
         }
         return trimmed;
     }
@@ -440,8 +440,8 @@ public class WorkItemCreateApiRequestBuilder {
     private static Map<String, String> buildKnownSimpleFieldTypes() {
         Map<String, String> types = new HashMap<String, String>();
         types.put("verificationcriteria", "text/html");
-        types.put("requirementsouce", "EnumOptionId");
         types.put("requirementsource", "EnumOptionId");
+        types.put("requirementsouce", "EnumOptionId");
         types.put("reqtype", "EnumOptionId");
         types.put("asil", "EnumOptionId");
         types.put("cal", "EnumOptionId");
