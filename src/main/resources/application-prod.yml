@@ -55,7 +55,7 @@ polarion:
 
     # SVN 账号，用于 checkout、update、commit。
     username: "polarion"
-    password: ""
+    password: "uaorar"
 
     checkout-timeout-seconds: 60
     update-timeout-seconds: 60
@@ -81,13 +81,41 @@ polarion:
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
 
-    # 默认传给 createItem 的 customFields。
-    # reqType、verificationcriteria 等字段只有在公司接口明确要求时再添加。
-    default-custom-fields:
-      - id: "requirementsource"
-        multi: false
-        type: "EnumOptionId"
-        value: "Regulation"
+    # 全局默认 customFields。保持空列表，避免所有项目都带上某个项目的特例字段。
+    default-custom-fields: []
+
+    # 按项目启用的 customFields 模板。key 必须和 moduleUrl 解析出的 projectId / createItem 的 polarionId 一致。
+    # 这里存字段类型和枚举候选项，给后续 AI 选择使用；没有 value 的模板字段不会直接发给 createItem。
+    # AI 或请求传入同 id 的 value 后，会复用这里的 type/enum-options 并发送最终字段。
+    project-custom-fields:
+      RMT_Platform:
+        - id: "requirementsource"
+          multi: false
+          type: "EnumOptionId"
+          enum-options:
+            - id: "internal"
+              name: "Internal内部的需求"
+            - id: "external"
+              name: "External来自外部的需求"
+            - id: "Regulation"
+              name: "Regulation法规需求"
+        - id: "verificationcriteria"
+          multi: false
+          type: "text/html"
+        - id: "reqType"
+          multi: false
+          type: "EnumOptionId"
+          enum-options:
+            - id: "functional"
+              name: "Functional Requirement 功能需求"
+            - id: "nofunctional"
+              name: "Non-Functional Requirement 非功能需求(性能等)"
+            - id: "interface"
+              name: "Interface Requirement 接口需求"
+            - id: "constraint"
+              name: "Constraint 约束条件"
+            - id: "information"
+              name: "Information 信息类需求"
 
     # 预留给 createItem 接口认证。当前接口不使用 token 认证。
     auth-type: "NONE"

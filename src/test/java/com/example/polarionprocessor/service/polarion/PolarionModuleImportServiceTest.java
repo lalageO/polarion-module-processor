@@ -4,6 +4,7 @@ import com.example.polarionprocessor.config.ModuleProcessorProperties;
 import com.example.polarionprocessor.config.PolarionProperties;
 import com.example.polarionprocessor.enums.ItemStatus;
 import com.example.polarionprocessor.model.polarion.PolarionCustomFieldRequest;
+import com.example.polarionprocessor.model.polarion.PolarionEnumOptionRequest;
 import com.example.polarionprocessor.model.polarion.PolarionImportItemResult;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportResponse;
@@ -79,25 +80,128 @@ class PolarionModuleImportServiceTest {
         PolarionProperties properties = apiProperties();
         WorkItemCreateApiRequestBuilder builder = new WorkItemCreateApiRequestBuilder(properties);
         WorkItemCreateRequest request = createRequest();
+        request.setAuthorName("尹何营");
+        request.setAssigneeIds(Arrays.asList("reviewer.one", "reviewer.two"));
+        request.setDueDate("2026-06-30");
         Map<String, Object> fields = new LinkedHashMap<String, Object>();
+        fields.put("status", "draft");
         fields.put("verificationcriteria", "测试验证：通过模拟不同驾驶场景确认能力。");
+        Map<String, Object> reqType = new LinkedHashMap<String, Object>();
+        reqType.put("id", "reqType");
+        reqType.put("multi", false);
+        reqType.put("name", "Requirement Type");
+        reqType.put("required", true);
+        reqType.put("type", "EnumOptionId");
+        reqType.put("enumOptions", Arrays.asList(
+                Collections.<String, Object>singletonMap("id", "functional")));
+        reqType.put("value", "functional");
+        fields.put("reqType", reqType);
         request.setFields(fields);
 
         WorkItemCreateApiRequest apiRequest = builder.build(request);
 
+        assertEquals("draft", apiRequest.getStatus());
         assertEquals("FDP_Demo", apiRequest.getPolarionId());
         assertEquals("stakeholderrequirement", apiRequest.getType());
         assertEquals("11 DCAS 应具备评估驾驶员持续参与能力", apiRequest.getTitle());
+        assertEquals("尹何营", apiRequest.getAuthorName());
         assertEquals("yiming.yuan", apiRequest.getAuthorId());
+        assertEquals(Arrays.asList("reviewer.one", "reviewer.two"), apiRequest.getAssigneeIds());
+        assertEquals("2026-06-30", apiRequest.getDueDate());
         assertEquals(Boolean.FALSE, apiRequest.getIsNewPdp());
         assertEquals(Boolean.TRUE, apiRequest.getOnlyCreate());
         assertEquals("【条款 11】原文：DCAS shall have means to evaluate continuous driver involvement.", apiRequest.getCdescription());
-        assertEquals(2, apiRequest.getCustomFields().size());
+        assertEquals(3, apiRequest.getCustomFields().size());
         assertEquals("requirementsource", apiRequest.getCustomFields().get(0).getId());
         assertEquals("EnumOptionId", apiRequest.getCustomFields().get(0).getType());
         assertEquals("Regulation", apiRequest.getCustomFields().get(0).getValue());
         assertEquals("verificationcriteria", apiRequest.getCustomFields().get(1).getId());
         assertEquals("text/html", apiRequest.getCustomFields().get(1).getType());
+        assertEquals("reqType", apiRequest.getCustomFields().get(2).getId());
+        assertEquals("Requirement Type", apiRequest.getCustomFields().get(2).getName());
+        assertEquals(Boolean.TRUE, apiRequest.getCustomFields().get(2).getRequired());
+        assertEquals("functional", apiRequest.getCustomFields().get(2).getValue());
+        assertEquals("functional", apiRequest.getCustomFields().get(2).getEnumOptions().get(0).getId());
+    }
+
+    @Test
+    void projectCustomFieldsOnlyApplyToMatchingProject() {
+        PolarionProperties properties = new PolarionProperties();
+        PolarionProperties.WorkItemApi api = properties.getWorkItemApi();
+        api.setDefaultCustomFields(Collections.<PolarionCustomFieldRequest>emptyList());
+        List<PolarionCustomFieldRequest> rmtFields = new ArrayList<PolarionCustomFieldRequest>();
+        PolarionCustomFieldRequest reqType = new PolarionCustomFieldRequest("reqType", Boolean.FALSE, "EnumOptionId", "functional");
+        reqType.setEnumOptions(Arrays.asList(new PolarionEnumOptionRequest("functional", "Functional")));
+        rmtFields.add(reqType);
+        Map<String, List<PolarionCustomFieldRequest>> projectCustomFields =
+                new LinkedHashMap<String, List<PolarionCustomFieldRequest>>();
+        projectCustomFields.put("RMT_Platform", rmtFields);
+        api.setProjectCustomFields(projectCustomFields);
+        WorkItemCreateApiRequestBuilder builder = new WorkItemCreateApiRequestBuilder(properties);
+
+        WorkItemCreateRequest rmtRequest = createRequest();
+        rmtRequest.setProjectId("RMT_Platform");
+        WorkItemCreateRequest fdpRequest = createRequest();
+        fdpRequest.setProjectId("FDP_Demo");
+
+        assertEquals(1, builder.build(rmtRequest).getCustomFields().size());
+        assertEquals("reqType", builder.build(rmtRequest).getCustomFields().get(0).getId());
+        assertTrue(builder.build(fdpRequest).getCustomFields().isEmpty());
+    }
+
+    @Test
+    void projectCustomFieldTemplatesProvideEnumOptionsAndMergeAiValues() {
+        PolarionProperties properties = new PolarionProperties();
+        PolarionProperties.WorkItemApi api = properties.getWorkItemApi();
+        api.setDefaultCustomFields(Collections.<PolarionCustomFieldRequest>emptyList());
+
+        List<PolarionCustomFieldRequest> rmtFields = new ArrayList<PolarionCustomFieldRequest>();
+        PolarionCustomFieldRequest requirementSource =
+                new PolarionCustomFieldRequest("requirementsouce", Boolean.FALSE, "EnumOptionId", null);
+        requirementSource.setEnumOptions(Arrays.asList(
+                new PolarionEnumOptionRequest("internal", "Internal内部的需求"),
+                new PolarionEnumOptionRequest("external", "External来自外部的需求"),
+                new PolarionEnumOptionRequest("Regulation", "Regulation法规需求")));
+        rmtFields.add(requirementSource);
+        rmtFields.add(new PolarionCustomFieldRequest("verificationcriteria", Boolean.FALSE, "text/html", null));
+        PolarionCustomFieldRequest reqType =
+                new PolarionCustomFieldRequest("reqType", Boolean.FALSE, "EnumOptionId", null);
+        reqType.setEnumOptions(Arrays.asList(
+                new PolarionEnumOptionRequest("functional", "Functional Requirement 功能需求"),
+                new PolarionEnumOptionRequest("nofunctional", "Non-Functional Requirement 非功能需求(性能等)"),
+                new PolarionEnumOptionRequest("interface", "Interface Requirement 接口需求"),
+                new PolarionEnumOptionRequest("constraint", "Constraint 约束条件"),
+                new PolarionEnumOptionRequest("information", "Information 信息类需求")));
+        rmtFields.add(reqType);
+        Map<String, List<PolarionCustomFieldRequest>> projectCustomFields =
+                new LinkedHashMap<String, List<PolarionCustomFieldRequest>>();
+        projectCustomFields.put("RMT_Platform", rmtFields);
+        api.setProjectCustomFields(projectCustomFields);
+
+        WorkItemCreateApiRequestBuilder builder = new WorkItemCreateApiRequestBuilder(properties);
+        WorkItemCreateRequest request = createRequest();
+        request.setProjectId("RMT_Platform");
+        assertTrue(builder.build(request).getCustomFields().isEmpty());
+
+        Map<String, Object> aiFields = new LinkedHashMap<String, Object>();
+        aiFields.put("requirementsouce", "Regulation");
+        aiFields.put("reqType", "constraint");
+        aiFields.put("verificationcriteria", "AI 生成的验证准则");
+        request.setFields(aiFields);
+
+        List<PolarionCustomFieldRequest> customFields = builder.build(request).getCustomFields();
+
+        assertEquals(3, customFields.size());
+        assertEquals("requirementsource", customFields.get(0).getId());
+        assertEquals("EnumOptionId", customFields.get(0).getType());
+        assertEquals("Regulation", customFields.get(0).getValue());
+        assertEquals(3, customFields.get(0).getEnumOptions().size());
+        assertEquals("verificationcriteria", customFields.get(1).getId());
+        assertEquals("text/html", customFields.get(1).getType());
+        assertEquals("AI 生成的验证准则", customFields.get(1).getValue());
+        assertEquals("reqType", customFields.get(2).getId());
+        assertEquals("constraint", customFields.get(2).getValue());
+        assertEquals(5, customFields.get(2).getEnumOptions().size());
     }
 
     @Test

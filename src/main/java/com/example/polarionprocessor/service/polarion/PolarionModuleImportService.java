@@ -216,6 +216,19 @@ public class PolarionModuleImportService {
         fields.put("type", resolved.workItemType);
         fields.put("polarionId", resolved.projectId);
         fields.put("authorId", resolved.authorId);
+        putIfNotNull(fields, "authorName", resolved.authorName);
+        putIfNotNull(fields, "status", resolved.status);
+        putIfNotNull(fields, "wkId", resolved.wkId);
+        putIfNotNull(fields, "assigneeIds", resolved.assigneeIds);
+        putIfNotNull(fields, "dueDate", resolved.dueDate);
+        putIfNotNull(fields, "startDate", resolved.startDate);
+        putIfNotNull(fields, "parentWkId", resolved.parentWkId);
+        putIfNotNull(fields, "isNewPdp", resolved.isNewPdp);
+        putIfNotNull(fields, "onlyCreate", resolved.onlyCreate);
+        putIfNotNull(fields, "commentContent", resolved.commentContent);
+        putIfNotNull(fields, "removedLink", resolved.removedLink);
+        putIfNotNull(fields, "initialEstimate", resolved.initialEstimate);
+        putIfNotNull(fields, "timeSpent", resolved.timeSpent);
         if (resolved.defaultFields != null) {
             fields.putAll(resolved.defaultFields);
         }
@@ -267,7 +280,20 @@ public class PolarionModuleImportService {
         request.setType(resolved.workItemType);
         request.setTitle(item.getTitle());
         request.setDescription(item.getDescription());
+        request.setAuthorName(resolved.authorName);
         request.setAuthorId(resolved.authorId);
+        request.setStatus(resolved.status);
+        request.setWkId(resolved.wkId);
+        request.setAssigneeIds(resolved.assigneeIds);
+        request.setDueDate(resolved.dueDate);
+        request.setStartDate(resolved.startDate);
+        request.setParentWkId(resolved.parentWkId);
+        request.setIsNewPdp(resolved.isNewPdp);
+        request.setOnlyCreate(resolved.onlyCreate);
+        request.setCommentContent(resolved.commentContent);
+        request.setRemovedLink(resolved.removedLink);
+        request.setInitialEstimate(resolved.initialEstimate);
+        request.setTimeSpent(resolved.timeSpent);
         request.setFields(resolved.defaultFields);
         request.setCustomFields(resolved.customFields);
         return request;
@@ -450,7 +476,20 @@ public class PolarionModuleImportService {
                 safeRequest.getWorkItemType(),
                 api == null ? null : api.getDefaultType(),
                 polarionProperties.getDefaultWorkItemType());
-        resolved.authorId = firstText(safeRequest.getAuthorId(), api == null ? null : api.getDefaultAuthorId());
+        resolved.authorName = safeRequest.getAuthorName();
+        resolved.authorId = firstText(safeRequest.getAuthorId(), safeRequest.getAuthorName(), api == null ? null : api.getDefaultAuthorId());
+        resolved.status = safeRequest.getStatus();
+        resolved.wkId = safeRequest.getWkId();
+        resolved.assigneeIds = safeRequest.getAssigneeIds();
+        resolved.dueDate = safeRequest.getDueDate();
+        resolved.startDate = safeRequest.getStartDate();
+        resolved.parentWkId = safeRequest.getParentWkId();
+        resolved.isNewPdp = safeRequest.getIsNewPdp();
+        resolved.onlyCreate = safeRequest.getOnlyCreate();
+        resolved.commentContent = safeRequest.getCommentContent();
+        resolved.removedLink = safeRequest.getRemovedLink();
+        resolved.initialEstimate = safeRequest.getInitialEstimate();
+        resolved.timeSpent = safeRequest.getTimeSpent();
         resolved.dryRun = safeRequest.getDryRun() == null ? false : safeRequest.getDryRun();
         resolved.requireKeyword = safeRequest.getRequireKeyword() == null
                 ? Boolean.TRUE.equals(moduleProperties.getDefaultRequireKeyword())
@@ -476,6 +515,12 @@ public class PolarionModuleImportService {
         return null;
     }
 
+    private void putIfNotNull(Map<String, Object> fields, String key, Object value) {
+        if (value != null) {
+            fields.put(key, value);
+        }
+    }
+
     private String buildJobId(String moduleName) {
         return TextUtils.sanitizePathPart(moduleName) + "_" + JOB_TIME_FORMAT.format(LocalDateTime.now());
     }
@@ -489,7 +534,20 @@ public class PolarionModuleImportService {
         private String moduleFolder;
         private String moduleName;
         private String workItemType;
+        private String authorName;
         private String authorId;
+        private String status;
+        private String wkId;
+        private List<String> assigneeIds;
+        private String dueDate;
+        private String startDate;
+        private String parentWkId;
+        private Boolean isNewPdp;
+        private Boolean onlyCreate;
+        private String commentContent;
+        private Boolean removedLink;
+        private String initialEstimate;
+        private String timeSpent;
         private boolean dryRun;
         private boolean requireKeyword;
         private Map<String, Object> defaultFields;

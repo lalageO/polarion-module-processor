@@ -30,9 +30,48 @@ public class PolarionModuleImportRequest {
     /** 要创建的 Work Item 类型。 */
     private String workItemType;
 
-    /** 创建 Work Item 时使用的作者账号；外部 anthorName/authorName 作为兼容别名。 */
-    @JsonAlias({"anthorName", "authorName"})
+    /** 创建 Work Item 时使用的作者账号；外部 anthorName 作为历史兼容别名。 */
+    @JsonAlias({"anthorName"})
     private String authorId;
+
+    /** 对齐远程 WorkItemWsDto.authorName，未传 authorId 时也可作为作者账号兜底。 */
+    private String authorName;
+
+    /** 对齐远程 WorkItemWsDto.status。 */
+    private String status;
+
+    /** 对齐远程 WorkItemWsDto.wkId。 */
+    private String wkId;
+
+    /** 对齐远程 WorkItemWsDto.assigneeIds。 */
+    private List<String> assigneeIds;
+
+    /** 对齐远程 WorkItemWsDto.dueDate。 */
+    private String dueDate;
+
+    /** 对齐远程 WorkItemWsDto.startDate。 */
+    private String startDate;
+
+    /** 对齐远程 WorkItemWsDto.parentWkId。 */
+    private String parentWkId;
+
+    /** 对齐远程 WorkItemWsDto.isNewPdp。 */
+    private Boolean isNewPdp;
+
+    /** 对齐远程 WorkItemWsDto.onlyCreate。 */
+    private Boolean onlyCreate;
+
+    /** 对齐远程 WorkItemWsDto.commentContent。 */
+    private String commentContent;
+
+    /** 对齐远程 WorkItemWsDto.removedLink。 */
+    private Boolean removedLink;
+
+    /** 对齐远程 WorkItemWsDto.initialEstimate。 */
+    private String initialEstimate;
+
+    /** 对齐远程 WorkItemWsDto.timeSpent。 */
+    private String timeSpent;
 
     /** true 时只下载、解析、识别和输出预览，不创建 Work Item，也不改写 XML。 */
     private Boolean dryRun;
@@ -100,6 +139,110 @@ public class PolarionModuleImportRequest {
 
     public void setAuthorId(String authorId) {
         this.authorId = authorId;
+    }
+
+    public String getAuthorName() {
+        return authorName;
+    }
+
+    public void setAuthorName(String authorName) {
+        this.authorName = authorName;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public String getWkId() {
+        return wkId;
+    }
+
+    public void setWkId(String wkId) {
+        this.wkId = wkId;
+    }
+
+    public List<String> getAssigneeIds() {
+        return assigneeIds;
+    }
+
+    public void setAssigneeIds(List<String> assigneeIds) {
+        this.assigneeIds = assigneeIds;
+    }
+
+    public String getDueDate() {
+        return dueDate;
+    }
+
+    public void setDueDate(String dueDate) {
+        this.dueDate = dueDate;
+    }
+
+    public String getStartDate() {
+        return startDate;
+    }
+
+    public void setStartDate(String startDate) {
+        this.startDate = startDate;
+    }
+
+    public String getParentWkId() {
+        return parentWkId;
+    }
+
+    public void setParentWkId(String parentWkId) {
+        this.parentWkId = parentWkId;
+    }
+
+    public Boolean getIsNewPdp() {
+        return isNewPdp;
+    }
+
+    public void setIsNewPdp(Boolean isNewPdp) {
+        this.isNewPdp = isNewPdp;
+    }
+
+    public Boolean getOnlyCreate() {
+        return onlyCreate;
+    }
+
+    public void setOnlyCreate(Boolean onlyCreate) {
+        this.onlyCreate = onlyCreate;
+    }
+
+    public String getCommentContent() {
+        return commentContent;
+    }
+
+    public void setCommentContent(String commentContent) {
+        this.commentContent = commentContent;
+    }
+
+    public Boolean getRemovedLink() {
+        return removedLink;
+    }
+
+    public void setRemovedLink(Boolean removedLink) {
+        this.removedLink = removedLink;
+    }
+
+    public String getInitialEstimate() {
+        return initialEstimate;
+    }
+
+    public void setInitialEstimate(String initialEstimate) {
+        this.initialEstimate = initialEstimate;
+    }
+
+    public String getTimeSpent() {
+        return timeSpent;
+    }
+
+    public void setTimeSpent(String timeSpent) {
+        this.timeSpent = timeSpent;
     }
 
     public Boolean getDryRun() {

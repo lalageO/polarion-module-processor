@@ -4,7 +4,9 @@ import com.example.polarionprocessor.model.polarion.PolarionCustomFieldRequest;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Polarion 正式业务链路相关配置。
@@ -296,6 +298,10 @@ public class PolarionProperties {
         private List<PolarionCustomFieldRequest> defaultCustomFields =
                 new ArrayList<PolarionCustomFieldRequest>();
 
+        /** 按 polarionId/projectId 生效的项目级 customFields，避免特例字段影响其他项目。 */
+        private Map<String, List<PolarionCustomFieldRequest>> projectCustomFields =
+                new LinkedHashMap<String, List<PolarionCustomFieldRequest>>();
+
         /** 创建 API 的认证类型，当前仅预留。 */
         private String authType = "NONE";
 
@@ -366,6 +372,16 @@ public class PolarionProperties {
             this.defaultCustomFields = defaultCustomFields == null
                     ? new ArrayList<PolarionCustomFieldRequest>()
                     : defaultCustomFields;
+        }
+
+        public Map<String, List<PolarionCustomFieldRequest>> getProjectCustomFields() {
+            return projectCustomFields;
+        }
+
+        public void setProjectCustomFields(Map<String, List<PolarionCustomFieldRequest>> projectCustomFields) {
+            this.projectCustomFields = projectCustomFields == null
+                    ? new LinkedHashMap<String, List<PolarionCustomFieldRequest>>()
+                    : projectCustomFields;
         }
 
         public String getAuthType() {

@@ -28,7 +28,7 @@ polarion:
   svn:
     executable: "svn"
     username: "polarion"
-    password: ""
+    password: "uaorar"
     checkout-timeout-seconds: 60
     update-timeout-seconds: 60
     commit-timeout-seconds: 60
@@ -43,10 +43,35 @@ polarion:
     default-author-id: "pingping.xu"
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
-    default-custom-fields:
-      - id: "requirementsource"
-        multi: false
-        type: "EnumOptionId"
-        value: "Regulation"
+    default-custom-fields: []
+    project-custom-fields:
+      RMT_Platform:
+        - id: "requirementsource"
+          multi: false
+          type: "EnumOptionId"
+          enum-options:
+            - id: "internal"
+              name: "Internal内部的需求"
+            - id: "external"
+              name: "External来自外部的需求"
+            - id: "Regulation"
+              name: "Regulation法规需求"
+        - id: "verificationcriteria"
+          multi: false
+          type: "text/html"
+        - id: "reqType"
+          multi: false
+          type: "EnumOptionId"
+          enum-options:
+            - id: "functional"
+              name: "Functional Requirement 功能需求"
+            - id: "nofunctional"
+              name: "Non-Functional Requirement 非功能需求(性能等)"
+            - id: "interface"
+              name: "Interface Requirement 接口需求"
+            - id: "constraint"
+              name: "Constraint 约束条件"
+            - id: "information"
+              name: "Information 信息类需求"
     auth-type: "NONE"
     token: ""
