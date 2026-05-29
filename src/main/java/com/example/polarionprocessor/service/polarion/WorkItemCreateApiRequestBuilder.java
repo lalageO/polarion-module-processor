@@ -272,8 +272,8 @@ public class WorkItemCreateApiRequestBuilder {
             return id;
         }
         String trimmed = id.trim();
-        if ("requirementsouce".equalsIgnoreCase(trimmed)) {
-            return "requirementsource";
+        if ("requirementsource".equalsIgnoreCase(trimmed)) {
+            return "requirementsouce";
         }
         return trimmed;
     }
@@ -431,6 +431,7 @@ public class WorkItemCreateApiRequestBuilder {
     private static Map<String, String> buildKnownSimpleFieldTypes() {
         Map<String, String> types = new HashMap<String, String>();
         types.put("verificationcriteria", "text/html");
+        types.put("requirementsouce", "EnumOptionId");
         types.put("requirementsource", "EnumOptionId");
         types.put("reqtype", "EnumOptionId");
         types.put("asil", "EnumOptionId");

@@ -112,7 +112,7 @@ class PolarionModuleImportServiceTest {
         assertEquals(Boolean.TRUE, apiRequest.getOnlyCreate());
         assertEquals("【条款 11】原文：DCAS shall have means to evaluate continuous driver involvement.", apiRequest.getCdescription());
         assertEquals(3, apiRequest.getCustomFields().size());
-        assertEquals("requirementsource", apiRequest.getCustomFields().get(0).getId());
+        assertEquals("requirementsouce", apiRequest.getCustomFields().get(0).getId());
         assertEquals("EnumOptionId", apiRequest.getCustomFields().get(0).getType());
         assertEquals("Regulation", apiRequest.getCustomFields().get(0).getValue());
         assertEquals("verificationcriteria", apiRequest.getCustomFields().get(1).getId());
@@ -192,7 +192,7 @@ class PolarionModuleImportServiceTest {
         List<PolarionCustomFieldRequest> customFields = builder.build(request).getCustomFields();
 
         assertEquals(3, customFields.size());
-        assertEquals("requirementsource", customFields.get(0).getId());
+        assertEquals("requirementsouce", customFields.get(0).getId());
         assertEquals("EnumOptionId", customFields.get(0).getType());
         assertEquals("Regulation", customFields.get(0).getValue());
         assertEquals(3, customFields.get(0).getEnumOptions().size());
@@ -420,7 +420,7 @@ class PolarionModuleImportServiceTest {
         api.setDefaultType("stakeholderrequirement");
         api.setDefaultAuthorId("yiming.yuan");
         List<PolarionCustomFieldRequest> defaultCustomFields = new ArrayList<PolarionCustomFieldRequest>();
-        defaultCustomFields.add(new PolarionCustomFieldRequest("requirementsource", Boolean.FALSE, "EnumOptionId", "Regulation"));
+        defaultCustomFields.add(new PolarionCustomFieldRequest("requirementsouce", Boolean.FALSE, "EnumOptionId", "Regulation"));
         api.setDefaultCustomFields(defaultCustomFields);
         return properties;
     }
@@ -473,7 +473,7 @@ class PolarionModuleImportServiceTest {
         request.setWorkItemType("stakeholderRequirement");
         request.setDryRun(dryRun);
         request.setRequireKeyword(false);
-        request.setDefaultFields(Collections.<String, Object>singletonMap("requirementsource", "Regulation"));
+        request.setDefaultFields(Collections.<String, Object>singletonMap("requirementsouce", "Regulation"));
         return request;
     }
 

@@ -46,7 +46,7 @@ polarion:
     default-custom-fields: []
     project-custom-fields:
       RMT_Platform:
-        - id: "requirementsource"
+        - id: "requirementsouce"
           multi: false
           type: "EnumOptionId"
           enum-options:

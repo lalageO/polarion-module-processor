@@ -89,7 +89,7 @@ polarion:
     # AI 或请求传入同 id 的 value 后，会复用这里的 type/enum-options 并发送最终字段。
     project-custom-fields:
       RMT_Platform:
-        - id: "requirementsource"
+        - id: "requirementsouce"
           multi: false
           type: "EnumOptionId"
           enum-options:
