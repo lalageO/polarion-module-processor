@@ -136,16 +136,21 @@ class PolarionModuleImportServiceTest {
         Map<String, List<PolarionCustomFieldRequest>> projectCustomFields =
                 new LinkedHashMap<String, List<PolarionCustomFieldRequest>>();
         projectCustomFields.put("RMT_Platform", rmtFields);
+        projectCustomFields.put("RMT_Platfrom_Demo", rmtFields);
         api.setProjectCustomFields(projectCustomFields);
         WorkItemCreateApiRequestBuilder builder = new WorkItemCreateApiRequestBuilder(properties);
 
         WorkItemCreateRequest rmtRequest = createRequest();
         rmtRequest.setProjectId("RMT_Platform");
+        WorkItemCreateRequest demoRequest = createRequest();
+        demoRequest.setProjectId("RMT_Platfrom_Demo");
         WorkItemCreateRequest fdpRequest = createRequest();
         fdpRequest.setProjectId("FDP_Demo");
 
         assertEquals(1, builder.build(rmtRequest).getCustomFields().size());
         assertEquals("reqType", builder.build(rmtRequest).getCustomFields().get(0).getId());
+        assertEquals(1, builder.build(demoRequest).getCustomFields().size());
+        assertEquals("reqType", builder.build(demoRequest).getCustomFields().get(0).getId());
         assertTrue(builder.build(fdpRequest).getCustomFields().isEmpty());
     }
 
@@ -176,11 +181,12 @@ class PolarionModuleImportServiceTest {
         Map<String, List<PolarionCustomFieldRequest>> projectCustomFields =
                 new LinkedHashMap<String, List<PolarionCustomFieldRequest>>();
         projectCustomFields.put("RMT_Platform", rmtFields);
+        projectCustomFields.put("RMT_Platfrom_Demo", rmtFields);
         api.setProjectCustomFields(projectCustomFields);
 
         WorkItemCreateApiRequestBuilder builder = new WorkItemCreateApiRequestBuilder(properties);
         WorkItemCreateRequest request = createRequest();
-        request.setProjectId("RMT_Platform");
+        request.setProjectId("RMT_Platfrom_Demo");
         assertTrue(builder.build(request).getCustomFields().isEmpty());
 
         Map<String, Object> aiFields = new LinkedHashMap<String, Object>();

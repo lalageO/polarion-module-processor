@@ -73,5 +73,33 @@ polarion:
               name: "Constraint 约束条件"
             - id: "information"
               name: "Information 信息类需求"
+      RMT_Platfrom_Demo:
+        - id: "requirementsouce"
+          multi: false
+          type: "EnumOptionId"
+          enum-options:
+            - id: "internal"
+              name: "Internal内部的需求"
+            - id: "external"
+              name: "External来自外部的需求"
+            - id: "Regulation"
+              name: "Regulation法规需求"
+        - id: "verificationcriteria"
+          multi: false
+          type: "text/html"
+        - id: "reqType"
+          multi: false
+          type: "EnumOptionId"
+          enum-options:
+            - id: "functional"
+              name: "Functional Requirement 功能需求"
+            - id: "nofunctional"
+              name: "Non-Functional Requirement 非功能需求(性能等)"
+            - id: "interface"
+              name: "Interface Requirement 接口需求"
+            - id: "constraint"
+              name: "Constraint 约束条件"
+            - id: "information"
+              name: "Information 信息类需求"
     auth-type: "NONE"
     token: ""
