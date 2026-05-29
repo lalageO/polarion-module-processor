@@ -118,10 +118,10 @@ class PolarionModuleImportServiceTest {
         assertEquals("verificationcriteria", apiRequest.getCustomFields().get(1).getId());
         assertEquals("text/html", apiRequest.getCustomFields().get(1).getType());
         assertEquals("reqType", apiRequest.getCustomFields().get(2).getId());
-        assertEquals("Requirement Type", apiRequest.getCustomFields().get(2).getName());
-        assertEquals(Boolean.TRUE, apiRequest.getCustomFields().get(2).getRequired());
+        assertNull(apiRequest.getCustomFields().get(2).getName());
+        assertNull(apiRequest.getCustomFields().get(2).getRequired());
         assertEquals("functional", apiRequest.getCustomFields().get(2).getValue());
-        assertEquals("functional", apiRequest.getCustomFields().get(2).getEnumOptions().get(0).getId());
+        assertNull(apiRequest.getCustomFields().get(2).getEnumOptions());
     }
 
     @Test
@@ -201,13 +201,13 @@ class PolarionModuleImportServiceTest {
         assertEquals("requirementsouce", customFields.get(0).getId());
         assertEquals("EnumOptionId", customFields.get(0).getType());
         assertEquals("Regulation", customFields.get(0).getValue());
-        assertEquals(3, customFields.get(0).getEnumOptions().size());
+        assertNull(customFields.get(0).getEnumOptions());
         assertEquals("verificationcriteria", customFields.get(1).getId());
         assertEquals("text/html", customFields.get(1).getType());
         assertEquals("AI 生成的验证准则", customFields.get(1).getValue());
         assertEquals("reqType", customFields.get(2).getId());
         assertEquals("constraint", customFields.get(2).getValue());
-        assertEquals(5, customFields.get(2).getEnumOptions().size());
+        assertNull(customFields.get(2).getEnumOptions());
     }
 
     @Test

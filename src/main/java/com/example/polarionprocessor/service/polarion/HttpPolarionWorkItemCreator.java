@@ -81,15 +81,27 @@ public class HttpPolarionWorkItemCreator implements PolarionWorkItemCreator {
         if (body == null) {
             return WorkItemCreateResult.failure("POLARION_API_EMPTY_RESPONSE", "Polarion API response body is empty");
         }
-        if (Boolean.TRUE.equals(body.getSuccess())
-                && "0".equals(body.getCode())
-                && TextUtils.hasText(body.getData())) {
-            LOGGER.info("Polarion Work Item created: workItemId={}", body.getData());
-            return WorkItemCreateResult.success(body.getData());
+        String workItemId = body.getData() == null ? null : body.getData().trim();
+        if ("0".equals(body.getCode()) && TextUtils.hasText(workItemId)) {
+            LOGGER.info("Polarion Work Item created: workItemId={}", workItemId);
+            return WorkItemCreateResult.success(workItemId);
+        }
+        if ("0".equals(body.getCode())) {
+            LOGGER.warn("Polarion Work Item API returned success code without workItemId: success={}, data={}, msg={}",
+                    body.getSuccess(),
+                    abbreviate(body.getData(), 120),
+                    body.getMsg());
+            return WorkItemCreateResult.failure(
+                    "POLARION_API_NO_WORK_ITEM_ID",
+                    "Polarion API returned code=0 but data/workItemId is empty; msg=" + body.getMsg());
         }
         String errorCode = TextUtils.hasText(body.getCode()) ? body.getCode() : "POLARION_API_FAILED";
         String errorMessage = TextUtils.hasText(body.getMsg()) ? body.getMsg() : "Polarion API returned failure";
-        LOGGER.warn("Polarion Work Item create failed: code={}, msg={}", errorCode, errorMessage);
+        LOGGER.warn("Polarion Work Item create failed: code={}, success={}, data={}, msg={}",
+                errorCode,
+                body.getSuccess(),
+                abbreviate(body.getData(), 120),
+                errorMessage);
         return WorkItemCreateResult.failure(errorCode, errorMessage);
     }
 

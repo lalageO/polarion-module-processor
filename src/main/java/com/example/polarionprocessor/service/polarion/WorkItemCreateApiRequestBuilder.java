@@ -244,10 +244,19 @@ public class WorkItemCreateApiRequestBuilder {
         List<PolarionCustomFieldRequest> customFields = new ArrayList<PolarionCustomFieldRequest>();
         for (PolarionCustomFieldRequest field : merged.values()) {
             if (hasCustomFieldValue(field)) {
-                customFields.add(copy(field));
+                customFields.add(toCreatePayloadField(field));
             }
         }
         return customFields;
+    }
+
+    private PolarionCustomFieldRequest toCreatePayloadField(PolarionCustomFieldRequest source) {
+        PolarionCustomFieldRequest field = new PolarionCustomFieldRequest();
+        field.setId(canonicalCustomFieldId(source.getId()));
+        field.setMulti(source.getMulti());
+        field.setType(source.getType());
+        field.setValue(source.getValue());
+        return field;
     }
 
     private boolean hasCustomFieldValue(PolarionCustomFieldRequest field) {
