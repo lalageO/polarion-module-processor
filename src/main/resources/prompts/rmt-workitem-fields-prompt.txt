@@ -35,9 +35,7 @@ JSON 中不能有注释，不能有尾随逗号。
 
 * 必须且只能从以下枚举 id 中选择一个：
 
-  * "internal"
-  * "external"
-  * "Regulation"
+${REQUIREMENTSOURCE_OPTIONS}
 * 只输出枚举 id，不要输出中文解释。
 * 如果需求描述来自法规、标准、规章、UN Regulation、ISO、法规条款或合规要求，选择 "Regulation"。
 * 如果需求描述来自客户、供应商、外部系统、外部接口、外部文档或外部约束，选择 "external"。
@@ -48,11 +46,7 @@ JSON 中不能有注释，不能有尾随逗号。
 
 * 必须且只能从以下枚举 id 中选择一个：
 
-  * "functional"
-  * "nofunctional"
-  * "interface"
-  * "constraint"
-  * "information"
+${REQTYPE_OPTIONS}
 * 只输出枚举 id，不要输出中文解释。
 * 如果描述要求系统、软件、车辆、功能或部件执行某种行为、能力、响应、控制、检测、判断、记录、通知或处理，选择 "functional"。
 * 如果描述强调性能、时间、精度、可靠性、安全性、可用性、容量、资源、鲁棒性、可维护性等质量属性，选择 "nofunctional"。

@@ -10,6 +10,12 @@ public enum JobStatus {
     /** item 已识别并写入初始结果。 */
     ITEMS_READY,
 
+    /** 正在顺序调用 AI 生成标题和字段。 */
+    AI_GENERATING,
+
+    /** AI 生成阶段完成，但可能存在单项 AI 兜底。 */
+    AI_COMPLETED,
+
     /** 正在顺序创建 Work Item。 */
     CREATING_WORK_ITEMS,
 

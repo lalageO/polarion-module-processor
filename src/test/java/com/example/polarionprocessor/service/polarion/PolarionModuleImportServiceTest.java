@@ -1,5 +1,10 @@
 package com.example.polarionprocessor.service.polarion;
 
+import com.example.polarionprocessor.ai.config.AiProperties;
+import com.example.polarionprocessor.ai.model.AiGenerateRequest;
+import com.example.polarionprocessor.ai.model.AiGenerateResult;
+import com.example.polarionprocessor.ai.service.WorkItemAiGenerationService;
+import com.example.polarionprocessor.ai.writer.AiDebugWriter;
 import com.example.polarionprocessor.config.ModuleProcessorProperties;
 import com.example.polarionprocessor.config.PolarionProperties;
 import com.example.polarionprocessor.enums.ItemStatus;
@@ -470,7 +475,9 @@ class PolarionModuleImportServiceTest {
                 rewriter,
                 committer,
                 new PolarionImportResultWriter(new ObjectMapper()),
-                new PolarionImportPreviewCsvWriter(moduleProperties));
+                new PolarionImportPreviewCsvWriter(moduleProperties),
+                new NoopAiGenerationService(),
+                new AiDebugWriter(new AiProperties(), new ObjectMapper()));
     }
 
     private PolarionModuleImportRequest request(boolean dryRun) {
@@ -591,6 +598,19 @@ class PolarionModuleImportServiceTest {
 
         Path getProcessedModuleXml() {
             return processedModuleXml;
+        }
+    }
+
+    private static class NoopAiGenerationService implements WorkItemAiGenerationService {
+
+        @Override
+        public boolean shouldRun(boolean dryRun) {
+            return false;
+        }
+
+        @Override
+        public AiGenerateResult generate(AiGenerateRequest request) {
+            return AiGenerateResult.failure(null, "AI disabled for test");
         }
     }
 }

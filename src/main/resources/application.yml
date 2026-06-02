@@ -103,3 +103,28 @@ polarion:
           type: "text/html"
     auth-type: "NONE"
     token: ""
+
+ai:
+  enabled: false
+  provider: "openai-compatible"
+  base-url: "http://llm.freetech.com/v1"
+  chat-completions-path: "/chat/completions"
+  model: "primary"
+  api-key: ""
+  connect-timeout-ms: 5000
+  read-timeout-ms: 60000
+  max-retries: 1
+  temperature: 0.2
+  response-format-json: false
+  run-in-dry-run: false
+  title-prompt-path: "classpath:prompts/workitem-title-prompt.txt"
+  field-prompt-path: "classpath:prompts/rmt-workitem-fields-prompt.txt"
+  field-generation-projects:
+    - "RMT_Platform"
+    - "RMT_Platfrom_Demo"
+  debug:
+    enabled: true
+    file-name: "ai_debug.jsonl"
+    store-raw-response: true
+    prompt-max-length: 4000
+    raw-response-max-length: 4000

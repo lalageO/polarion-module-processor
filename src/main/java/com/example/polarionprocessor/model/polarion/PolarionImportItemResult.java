@@ -17,10 +17,17 @@ public class PolarionImportItemResult {
     private String startParagraphId;
     private String endParagraphId;
     private String outlineNo;
+    private String ruleTitle;
+    private String aiTitle;
     private String title;
     private String description;
     private Boolean candidate;
     private String skipReason;
+    private String aiStatus;
+    private String aiPromptType;
+    private String aiDebugRef;
+    private String aiErrorMessage;
+    private Map<String, Object> aiFields = new LinkedHashMap<String, Object>();
     private Map<String, Object> workItemCreateFields = new LinkedHashMap<String, Object>();
     private List<PolarionCustomFieldRequest> customFields = new ArrayList<PolarionCustomFieldRequest>();
     private String workItemId;
@@ -87,6 +94,22 @@ public class PolarionImportItemResult {
         this.title = title;
     }
 
+    public String getRuleTitle() {
+        return ruleTitle;
+    }
+
+    public void setRuleTitle(String ruleTitle) {
+        this.ruleTitle = ruleTitle;
+    }
+
+    public String getAiTitle() {
+        return aiTitle;
+    }
+
+    public void setAiTitle(String aiTitle) {
+        this.aiTitle = aiTitle;
+    }
+
     public String getDescription() {
         return description;
     }
@@ -109,6 +132,46 @@ public class PolarionImportItemResult {
 
     public void setSkipReason(String skipReason) {
         this.skipReason = skipReason;
+    }
+
+    public String getAiStatus() {
+        return aiStatus;
+    }
+
+    public void setAiStatus(String aiStatus) {
+        this.aiStatus = aiStatus;
+    }
+
+    public String getAiPromptType() {
+        return aiPromptType;
+    }
+
+    public void setAiPromptType(String aiPromptType) {
+        this.aiPromptType = aiPromptType;
+    }
+
+    public String getAiDebugRef() {
+        return aiDebugRef;
+    }
+
+    public void setAiDebugRef(String aiDebugRef) {
+        this.aiDebugRef = aiDebugRef;
+    }
+
+    public String getAiErrorMessage() {
+        return aiErrorMessage;
+    }
+
+    public void setAiErrorMessage(String aiErrorMessage) {
+        this.aiErrorMessage = aiErrorMessage;
+    }
+
+    public Map<String, Object> getAiFields() {
+        return aiFields;
+    }
+
+    public void setAiFields(Map<String, Object> aiFields) {
+        this.aiFields = aiFields == null ? new LinkedHashMap<String, Object>() : aiFields;
     }
 
     public Map<String, Object> getWorkItemCreateFields() {

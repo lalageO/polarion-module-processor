@@ -1,5 +1,10 @@
 package com.example.polarionprocessor.service.polarion;
 
+import com.example.polarionprocessor.ai.model.AiDebugRecord;
+import com.example.polarionprocessor.ai.model.AiGenerateRequest;
+import com.example.polarionprocessor.ai.model.AiGenerateResult;
+import com.example.polarionprocessor.ai.service.WorkItemAiGenerationService;
+import com.example.polarionprocessor.ai.writer.AiDebugWriter;
 import com.example.polarionprocessor.config.ModuleProcessorProperties;
 import com.example.polarionprocessor.config.PolarionProperties;
 import com.example.polarionprocessor.enums.ItemStatus;
@@ -13,6 +18,7 @@ import com.example.polarionprocessor.model.polarion.PolarionImportItemResult;
 import com.example.polarionprocessor.model.polarion.PolarionImportJobResult;
 import com.example.polarionprocessor.model.polarion.PolarionImportSummary;
 import com.example.polarionprocessor.model.polarion.PolarionCustomFieldRequest;
+import com.example.polarionprocessor.model.polarion.PolarionEnumOptionRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleLocation;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportResponse;
@@ -51,6 +57,9 @@ public class PolarionModuleImportService {
     private static final String PROCESSED_XML_FILE = "module.xml";
     private static final String RESULT_JSON_FILE = "import_result.json";
     private static final String PREVIEW_CSV_FILE = "import_preview.csv";
+    private static final String AI_STATUS_CALLING = "CALLING";
+    private static final String AI_STATUS_SUCCESS = "SUCCESS";
+    private static final String AI_STATUS_FAILED = "FAILED";
     private static final DateTimeFormatter JOB_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
 
     private final ModuleProcessorProperties moduleProperties;
@@ -69,6 +78,8 @@ public class PolarionModuleImportService {
     private final SvnModuleCommitter svnModuleCommitter;
     private final PolarionImportResultWriter resultWriter;
     private final PolarionImportPreviewCsvWriter csvWriter;
+    private final WorkItemAiGenerationService aiGenerationService;
+    private final AiDebugWriter aiDebugWriter;
 
     public PolarionModuleImportService(ModuleProcessorProperties moduleProperties,
                                        PolarionProperties polarionProperties,
@@ -85,7 +96,9 @@ public class PolarionModuleImportService {
                                        ModuleXmlRewriter moduleXmlRewriter,
                                        SvnModuleCommitter svnModuleCommitter,
                                        PolarionImportResultWriter resultWriter,
-                                       PolarionImportPreviewCsvWriter csvWriter) {
+                                       PolarionImportPreviewCsvWriter csvWriter,
+                                       WorkItemAiGenerationService aiGenerationService,
+                                       AiDebugWriter aiDebugWriter) {
         this.moduleProperties = moduleProperties;
         this.polarionProperties = polarionProperties;
         this.moduleUrlParser = moduleUrlParser;
@@ -102,6 +115,8 @@ public class PolarionModuleImportService {
         this.svnModuleCommitter = svnModuleCommitter;
         this.resultWriter = resultWriter;
         this.csvWriter = csvWriter;
+        this.aiGenerationService = aiGenerationService;
+        this.aiDebugWriter = aiDebugWriter;
     }
 
     /**
@@ -115,6 +130,7 @@ public class PolarionModuleImportService {
         Path processedFile = jobDir.resolve(PROCESSED_XML_FILE);
         Path resultJsonFile = jobDir.resolve(RESULT_JSON_FILE);
         Path previewCsvFile = jobDir.resolve(PREVIEW_CSV_FILE);
+        Path aiDebugFile = jobDir.resolve(aiDebugWriter.fileName());
 
         PolarionImportJobResult jobResult = buildEmptyJobResult(jobId, resolved);
         try {
@@ -131,6 +147,8 @@ public class PolarionModuleImportService {
             updateSummary(jobResult, paragraphs.size());
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, items);
+
+            generateAiFieldsIfNeeded(resolved, jobResult, resultJsonFile, previewCsvFile, aiDebugFile);
 
             if (resolved.dryRun) {
                 return buildResponse(true, "Dry-run completed", jobDir, jobResult);
@@ -184,7 +202,9 @@ public class PolarionModuleImportService {
             candidateSelector.apply(legacyItem, minOutlineDepth, resolved.requireKeyword, levelTwoMinTextLength);
             PolarionImportItemResult item = mapItem(resolved, legacyItem);
             if (Boolean.TRUE.equals(legacyItem.getCandidate())) {
-                item.setTitle(titleGenerator.generate(legacyItem, titleRequest));
+                String ruleTitle = titleGenerator.generate(legacyItem, titleRequest);
+                item.setRuleTitle(ruleTitle);
+                item.setTitle(effectiveTitle(resolved, item));
                 item.setStatus(ItemStatus.READY.name());
             } else {
                 item.setStatus(ItemStatus.SKIPPED.name());
@@ -193,6 +213,128 @@ public class PolarionModuleImportService {
             items.add(item);
         }
         return items;
+    }
+
+    private void generateAiFieldsIfNeeded(ResolvedRequest resolved,
+                                          PolarionImportJobResult jobResult,
+                                          Path resultJsonFile,
+                                          Path previewCsvFile,
+                                          Path aiDebugFile) throws IOException {
+        if (!aiGenerationService.shouldRun(resolved.dryRun)) {
+            return;
+        }
+        jobResult.getFiles().setAiDebug(aiDebugWriter.fileName());
+        jobResult.setStatus(JobStatus.AI_GENERATING.name());
+        resultWriter.writeAtomic(resultJsonFile, jobResult);
+        csvWriter.write(previewCsvFile, jobResult.getItems());
+
+        for (PolarionImportItemResult item : jobResult.getItems()) {
+            if (!Boolean.TRUE.equals(item.getCandidate())) {
+                continue;
+            }
+            item.setAiStatus(AI_STATUS_CALLING);
+            item.setAiErrorMessage(null);
+            item.setAiDebugRef(buildAiDebugRef(item));
+            resultWriter.writeAtomic(resultJsonFile, jobResult);
+            csvWriter.write(previewCsvFile, jobResult.getItems());
+
+            AiGenerateRequest aiRequest = buildAiRequest(resolved, jobResult, item);
+            AiGenerateResult aiResult = aiGenerationService.generate(aiRequest);
+            applyAiResult(resolved, item, aiResult);
+            aiDebugWriter.append(aiDebugFile, buildAiDebugRecord(jobResult, item, aiResult));
+            item.setCustomFields(buildApiRequest(resolved, item).getCustomFields());
+
+            updateSummary(jobResult, jobResult.getSummary().getParagraphCount());
+            resultWriter.writeAtomic(resultJsonFile, jobResult);
+            csvWriter.write(previewCsvFile, jobResult.getItems());
+        }
+
+        jobResult.setStatus(JobStatus.AI_COMPLETED.name());
+        resultWriter.writeAtomic(resultJsonFile, jobResult);
+        csvWriter.write(previewCsvFile, jobResult.getItems());
+    }
+
+    private AiGenerateRequest buildAiRequest(ResolvedRequest resolved,
+                                             PolarionImportJobResult jobResult,
+                                             PolarionImportItemResult item) {
+        AiGenerateRequest request = new AiGenerateRequest();
+        request.setJobId(jobResult.getJobId());
+        request.setProjectId(resolved.projectId);
+        request.setModuleName(resolved.moduleName);
+        request.setItemSeq(item.getSeq());
+        request.setItemKey(item.getItemKey());
+        request.setOutlineNo(item.getOutlineNo());
+        request.setRuleTitle(item.getRuleTitle());
+        request.setDescription(item.getDescription());
+        request.setEnumOptions(buildProjectEnumOptions(resolved.projectId));
+        return request;
+    }
+
+    private void applyAiResult(ResolvedRequest resolved,
+                               PolarionImportItemResult item,
+                               AiGenerateResult aiResult) {
+        if (aiResult == null) {
+            item.setAiStatus(AI_STATUS_FAILED);
+            item.setAiErrorMessage("AI result is empty");
+            item.setTitle(effectiveTitle(resolved, item));
+            item.setAiFields(new LinkedHashMap<String, Object>());
+            return;
+        }
+        item.setAiPromptType(aiResult.getPromptType() == null ? null : aiResult.getPromptType().name());
+        if (Boolean.TRUE.equals(aiResult.getSuccess())) {
+            item.setAiStatus(AI_STATUS_SUCCESS);
+            item.setAiErrorMessage(null);
+            if (TextUtils.hasText(aiResult.getTitle())) {
+                item.setAiTitle(aiResult.getTitle());
+            }
+            item.setAiFields(aiResult.getFields());
+        } else {
+            item.setAiStatus(AI_STATUS_FAILED);
+            item.setAiErrorMessage(aiResult.getErrorMessage());
+            item.setAiFields(new LinkedHashMap<String, Object>());
+        }
+        item.setTitle(effectiveTitle(resolved, item));
+    }
+
+    private AiDebugRecord buildAiDebugRecord(PolarionImportJobResult jobResult,
+                                             PolarionImportItemResult item,
+                                             AiGenerateResult aiResult) {
+        AiDebugRecord record = new AiDebugRecord();
+        record.setRef(item.getAiDebugRef());
+        record.setJobId(jobResult.getJobId());
+        record.setProjectId(jobResult.getProjectId());
+        record.setModuleName(jobResult.getModuleName());
+        record.setItemSeq(item.getSeq());
+        record.setItemKey(item.getItemKey());
+        record.setOutlineNo(item.getOutlineNo());
+        if (aiResult != null) {
+            record.setPromptType(aiResult.getPromptType() == null ? null : aiResult.getPromptType().name());
+            record.setModel(aiResult.getModel());
+            record.setSuccess(aiResult.getSuccess());
+            record.setErrorMessage(aiResult.getErrorMessage());
+            record.setPrompt(aiResult.getPrompt());
+            record.setRawResponse(aiResult.getRawResponse());
+            record.setParsedFields(aiResult.getParsedFields());
+            Map<String, Object> acceptedFields = new LinkedHashMap<String, Object>();
+            putIfNotNull(acceptedFields, "title", aiResult.getTitle());
+            if (aiResult.getFields() != null) {
+                acceptedFields.putAll(aiResult.getFields());
+            }
+            record.setAcceptedFields(acceptedFields);
+            record.setUsage(aiResult.getUsage());
+        } else {
+            record.setSuccess(Boolean.FALSE);
+            record.setErrorMessage("AI result is empty");
+        }
+        return record;
+    }
+
+    private String buildAiDebugRef(PolarionImportItemResult item) {
+        Integer seq = item == null ? null : item.getSeq();
+        if (seq == null) {
+            return "ai-unknown";
+        }
+        return String.format("ai-%06d", seq);
     }
 
     private PolarionImportItemResult mapItem(ResolvedRequest resolved, ImportItemResult legacyItem) {
@@ -278,7 +420,7 @@ public class PolarionModuleImportService {
         WorkItemCreateRequest request = new WorkItemCreateRequest();
         request.setProjectId(resolved.projectId);
         request.setType(resolved.workItemType);
-        request.setTitle(item.getTitle());
+        request.setTitle(effectiveTitle(resolved, item));
         request.setDescription(item.getDescription());
         request.setAuthorName(resolved.authorName);
         request.setAuthorId(resolved.authorId);
@@ -294,9 +436,20 @@ public class PolarionModuleImportService {
         request.setRemovedLink(resolved.removedLink);
         request.setInitialEstimate(resolved.initialEstimate);
         request.setTimeSpent(resolved.timeSpent);
-        request.setFields(resolved.defaultFields);
+        request.setFields(buildRequestFields(resolved, item));
         request.setCustomFields(resolved.customFields);
         return request;
+    }
+
+    private Map<String, Object> buildRequestFields(ResolvedRequest resolved, PolarionImportItemResult item) {
+        Map<String, Object> fields = new LinkedHashMap<String, Object>();
+        if (item != null && item.getAiFields() != null) {
+            fields.putAll(item.getAiFields());
+        }
+        if (resolved.defaultFields != null) {
+            fields.putAll(resolved.defaultFields);
+        }
+        return fields;
     }
 
     private WorkItemCreateApiRequest buildApiRequest(ResolvedRequest resolved, PolarionImportItemResult item) {
@@ -400,6 +553,7 @@ public class PolarionModuleImportService {
         response.setProcessedXmlFile(jobResult.getFiles().getProcessedXml());
         response.setResultJsonFile(RESULT_JSON_FILE);
         response.setPreviewCsvFile(PREVIEW_CSV_FILE);
+        response.setAiDebugFile(jobResult.getFiles().getAiDebug());
         if (jobResult.getSvnCommitResult() != null) {
             response.setSvnCommitStatus(jobResult.getSvnCommitResult().getStatus());
             response.setSvnRevision(jobResult.getSvnCommitResult().getRevision());
@@ -426,6 +580,71 @@ public class PolarionModuleImportService {
             }
         }
         return false;
+    }
+
+    private String effectiveTitle(ResolvedRequest resolved, PolarionImportItemResult item) {
+        return firstText(
+                resolved == null || resolved.defaultFields == null ? null : stringValue(resolved.defaultFields.get("title")),
+                item == null ? null : item.getAiTitle(),
+                item == null ? null : item.getRuleTitle(),
+                item == null ? null : item.getTitle());
+    }
+
+    private Map<String, List<PolarionEnumOptionRequest>> buildProjectEnumOptions(String projectId) {
+        Map<String, List<PolarionEnumOptionRequest>> enumOptions =
+                new LinkedHashMap<String, List<PolarionEnumOptionRequest>>();
+        PolarionProperties.WorkItemApi api = polarionProperties.getWorkItemApi();
+        List<PolarionCustomFieldRequest> customFields = projectCustomFields(api, projectId);
+        if (customFields == null) {
+            return enumOptions;
+        }
+        for (PolarionCustomFieldRequest field : customFields) {
+            if (field == null || !TextUtils.hasText(field.getId())
+                    || field.getEnumOptions() == null || field.getEnumOptions().isEmpty()) {
+                continue;
+            }
+            enumOptions.put(canonicalCustomFieldId(field.getId()), copyEnumOptions(field.getEnumOptions()));
+        }
+        return enumOptions;
+    }
+
+    private List<PolarionCustomFieldRequest> projectCustomFields(PolarionProperties.WorkItemApi api, String projectId) {
+        if (api == null || api.getProjectCustomFields() == null || !TextUtils.hasText(projectId)) {
+            return null;
+        }
+        List<PolarionCustomFieldRequest> fields = api.getProjectCustomFields().get(projectId);
+        if (fields != null) {
+            return fields;
+        }
+        for (Map.Entry<String, List<PolarionCustomFieldRequest>> entry : api.getProjectCustomFields().entrySet()) {
+            if (entry.getKey() != null && projectId.trim().equalsIgnoreCase(entry.getKey().trim())) {
+                return entry.getValue();
+            }
+        }
+        return null;
+    }
+
+    private List<PolarionEnumOptionRequest> copyEnumOptions(List<PolarionEnumOptionRequest> source) {
+        List<PolarionEnumOptionRequest> copy = new ArrayList<PolarionEnumOptionRequest>();
+        if (source == null) {
+            return copy;
+        }
+        for (PolarionEnumOptionRequest option : source) {
+            if (option != null) {
+                copy.add(new PolarionEnumOptionRequest(option.getId(), option.getName()));
+            }
+        }
+        return copy;
+    }
+
+    private String canonicalCustomFieldId(String id) {
+        if (!TextUtils.hasText(id)) {
+            return id;
+        }
+        if ("requirementsouce".equalsIgnoreCase(id.trim())) {
+            return "requirementsource";
+        }
+        return id.trim();
     }
 
     private int countCandidates(List<PolarionImportItemResult> items) {
@@ -519,6 +738,10 @@ public class PolarionModuleImportService {
         if (value != null) {
             fields.put(key, value);
         }
+    }
+
+    private String stringValue(Object value) {
+        return value == null ? null : String.valueOf(value);
     }
 
     private String buildJobId(String moduleName) {

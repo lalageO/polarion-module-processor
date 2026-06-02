@@ -1,43 +1,26 @@
-# 服务器生产环境配置。
-# 目录结构：
-#   Polarion_Document2Workitem/
-#     polarion-module-processor.jar
-#     application-prod.yml
-#     outputs/
-#
-# 从 Polarion_Document2Workitem 目录启动：
 #   java -Dfile.encoding=UTF-8 -jar polarion-module-processor.jar --spring.config.location=./application-prod.yml
 
 server:
-  port: 8080
+  port: 8088
 
 module-processor:
-
-  # 任务输出根目录 Polarion_Document2Workitem/outputs/{jobId}/
   output-dir: outputs
-
-  # 请求和 XML 都没有提供模块名时使用的兜底模块名。
   default-module-name: unknown-module
-
-  # 本地调试上传接口的默认值。正式 Polarion 导入链路不使用 mock 替换。
   default-replace-mode: NONE
   default-mock-id-prefix: MOCK
 
-  # 候选条款筛选默认配置。
   default-min-outline-depth: 2  # 2 表示默认忽略 "5. General" 这种一级章节标题。
-  default-require-keyword: false # false 表示只要符合数字条款规则即可作为候选，不强制包含 shall/should/must 等关键词。
+  default-require-keyword: false # 不强制包含 shall/should/must 等关键词。
   default-include-sub-items: false # 保持 false，除非后续明确调整条款分组策略。
   level-two-min-text-length: 80 # 二级条款文本短于该长度时，倾向认为是章节标题并跳过。
   title-max-length: 80 # 规则生成标题的最大长度。
   csv-with-bom: true # true 表示 CSV 写入 UTF-8 BOM，方便 Windows Excel 打开不乱码。
 
 polarion:
- 
   base-url: "http://alm.freetech.com"
   module-file-name: "module.xml"
 
-  # 请求或 moduleUrl 未提供这些字段时使用的默认值。
-  default-project-id: "FDP_Demo"
+  default-project-id: "Demo"
   default-module-folder: "10 Stakeholder Requirement"
   default-work-item-type: "stakeholderrequirement"
 
@@ -65,12 +48,11 @@ polarion:
 
   work-item-api:
     enabled: true
-    # 公司内部 createItem 接口地址。
     create-url: "http://10.179.60.154:30000/workitem/ws/create"
 
-    default-polarion-id: "FDP_Demo"
+    default-polarion-id: "Demo"
     default-type: "stakeholderrequirement"
-    default-author-id: "pingping.xu"
+    default-author-id: ""
 
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
@@ -142,3 +124,42 @@ polarion:
     # 预留给 createItem 接口认证。当前接口不使用 token 认证。
     auth-type: "NONE"
     token: ""
+
+ai:
+  # 确认模型服务和提示词稳定后再改为 true。
+  enabled: false
+  provider: "openai-compatible"
+  base-url: "http://llm.freetech.com/v1"
+  chat-completions-path: "/chat/completions"
+  # 公司内部默认模型名。后续切到阿里云兼容接口时可改这里和 base-url。
+  model: "primary"
+  api-key: ""
+
+  # 模型接口超时和重试配置。
+  connect-timeout-ms: 10000
+  read-timeout-ms: 10000
+  max-retries: 2
+  temperature: 0.2 # 生成文本的随机程度，0.2 表示较为保守，适合生成结构化内容。
+
+  # 部分兼容网关不支持 response_format=json_object，默认不发送该参数。
+  response-format-json: false
+
+  # dryRun 是否也调用 AI。默认 false，避免预览时产生模型成本。
+  run-in-dry-run: false
+
+  # 普通项目只生成标题；特例项目生成标题和 requirementsource/reqType/verificationcriteria。
+  title-prompt-path: "classpath:prompts/workitem-title-prompt.txt"
+  field-prompt-path: "classpath:prompts/rmt-workitem-fields-prompt.txt"
+
+  # 命中这些 projectId 时，走特例字段提示词；其他项目只生成标题。
+  field-generation-projects:
+    - "RMT_Platform"
+    - "RMT_Platfrom_Demo"
+
+  debug:
+    # 开启后在 outputs/{jobId}/ai_debug.jsonl 逐条记录 prompt、原始响应和解析结果。
+    enabled: true
+    file-name: "ai_debug.jsonl"
+    store-raw-response: true
+    prompt-max-length: 4000
+    raw-response-max-length: 4000

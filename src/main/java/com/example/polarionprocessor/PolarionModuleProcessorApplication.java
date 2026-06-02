@@ -1,5 +1,6 @@
 package com.example.polarionprocessor;
 
+import com.example.polarionprocessor.ai.config.AiProperties;
 import com.example.polarionprocessor.config.ModuleProcessorProperties;
 import com.example.polarionprocessor.config.PolarionProperties;
 import org.springframework.boot.SpringApplication;
@@ -9,7 +10,7 @@ import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
 @EnableAsync
-@EnableConfigurationProperties({ModuleProcessorProperties.class, PolarionProperties.class})
+@EnableConfigurationProperties({ModuleProcessorProperties.class, PolarionProperties.class, AiProperties.class})
 public class PolarionModuleProcessorApplication {
 
     public static void main(String[] args) {
