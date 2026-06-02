@@ -4,6 +4,9 @@ package com.example.polarionprocessor.enums;
  * 正式导入任务的整体状态。
  */
 public enum JobStatus {
+    /** 请求已接收，后台任务已提交。 */
+    SUBMITTED,
+
     /** item 已识别并写入初始结果。 */
     ITEMS_READY,
 

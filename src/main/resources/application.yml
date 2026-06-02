@@ -2,7 +2,7 @@ server:
   port: 8080
 
 module-processor:
-  output-dir: output
+  output-dir: outputs
   default-module-name: unknown-module
   default-replace-mode: NONE
   default-mock-id-prefix: MOCK

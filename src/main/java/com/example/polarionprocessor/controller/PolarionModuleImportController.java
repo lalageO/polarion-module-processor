@@ -1,9 +1,10 @@
 package com.example.polarionprocessor.controller;
 
+import com.example.polarionprocessor.enums.JobStatus;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportResponse;
 import com.example.polarionprocessor.model.polarion.PolarionModuleLocation;
-import com.example.polarionprocessor.service.polarion.PolarionModuleImportService;
+import com.example.polarionprocessor.service.polarion.PolarionModuleImportAsyncExecutor;
 import com.example.polarionprocessor.service.polarion.PolarionModuleUrlParser;
 import com.example.polarionprocessor.service.shared.ModuleProcessException;
 import com.example.polarionprocessor.util.TextUtils;
@@ -25,14 +26,14 @@ public class PolarionModuleImportController {
 
     private final ObjectMapper objectMapper;
     private final PolarionModuleUrlParser moduleUrlParser;
-    private final PolarionModuleImportService importService;
+    private final PolarionModuleImportAsyncExecutor importAsyncExecutor;
 
     public PolarionModuleImportController(ObjectMapper objectMapper,
                                           PolarionModuleUrlParser moduleUrlParser,
-                                          PolarionModuleImportService importService) {
+                                          PolarionModuleImportAsyncExecutor importAsyncExecutor) {
         this.objectMapper = objectMapper;
         this.moduleUrlParser = moduleUrlParser;
-        this.importService = importService;
+        this.importAsyncExecutor = importAsyncExecutor;
     }
 
     @PostMapping("/import")
@@ -47,9 +48,14 @@ public class PolarionModuleImportController {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(PolarionModuleImportResponse.failure(e.getErrorCode() + ": " + e.getMessage()));
         }
-        PolarionModuleImportResponse response = importService.importModule(request);
-        HttpStatus status = Boolean.TRUE.equals(response.getSuccess()) ? HttpStatus.OK : HttpStatus.BAD_REQUEST;
-        return ResponseEntity.status(status).body(response);
+        try {
+            validateRequest(request);
+        } catch (ModuleProcessException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .body(PolarionModuleImportResponse.failure(e.getErrorCode() + ": " + e.getMessage()));
+        }
+        importAsyncExecutor.submit(request);
+        return ResponseEntity.status(HttpStatus.ACCEPTED).body(buildSubmittedResponse(request));
     }
 
     /**
@@ -90,5 +96,35 @@ public class PolarionModuleImportController {
         request.setModuleFolder(location.getModuleFolder());
         request.setModuleName(location.getModuleName());
         request.setBaseUrl(location.getBaseUrl());
+    }
+
+    private void validateRequest(PolarionModuleImportRequest request) {
+        if (request == null) {
+            throw new ModuleProcessException("REQUEST_PARAMETER_INVALID", "request body is required");
+        }
+        if (TextUtils.hasText(request.getModuleUrl())) {
+            return;
+        }
+        if (TextUtils.hasText(request.getBaseUrl())
+                && TextUtils.hasText(request.getProjectId())
+                && TextUtils.hasText(request.getModuleFolder())
+                && TextUtils.hasText(request.getModuleName())) {
+            return;
+        }
+        throw new ModuleProcessException(
+                "REQUEST_PARAMETER_INVALID",
+                "moduleUrl is required, or baseUrl/projectId/moduleFolder/moduleName must all be provided");
+    }
+
+    private PolarionModuleImportResponse buildSubmittedResponse(PolarionModuleImportRequest request) {
+        PolarionModuleImportResponse response = new PolarionModuleImportResponse();
+        response.setSuccess(true);
+        response.setStatus(JobStatus.SUBMITTED.name());
+        response.setProjectId(request.getProjectId());
+        response.setModuleFolder(request.getModuleFolder());
+        response.setModuleName(request.getModuleName());
+        response.setDryRun(request.getDryRun() == null ? Boolean.FALSE : request.getDryRun());
+        response.setMessage("任务已提交，正在处理中");
+        return response;
     }
 }

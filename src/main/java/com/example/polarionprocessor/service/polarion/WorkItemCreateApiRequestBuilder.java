@@ -60,14 +60,12 @@ public class WorkItemCreateApiRequestBuilder {
     public WorkItemCreateApiRequest build(WorkItemCreateRequest request) {
         WorkItemCreateRequest safeRequest = request == null ? new WorkItemCreateRequest() : request;
         PolarionProperties.WorkItemApi api = properties.getWorkItemApi();
+        String effectiveProjectId = effectiveProjectId(safeRequest, api);
 
         WorkItemCreateApiRequest apiRequest = new WorkItemCreateApiRequest();
         apiRequest.setStatus(safeRequest.getStatus());
         apiRequest.setWkId(safeRequest.getWkId());
-        apiRequest.setPolarionId(firstText(
-                safeRequest.getProjectId(),
-                api == null ? null : api.getDefaultPolarionId(),
-                properties.getDefaultProjectId()));
+        apiRequest.setPolarionId(effectiveProjectId);
         apiRequest.setType(normalizeWorkItemType(firstText(
                 safeRequest.getType(),
                 api == null ? null : api.getDefaultType(),
@@ -94,12 +92,13 @@ public class WorkItemCreateApiRequestBuilder {
     public List<PolarionCustomFieldRequest> buildCustomFields(WorkItemCreateRequest request) {
         WorkItemCreateRequest safeRequest = request == null ? new WorkItemCreateRequest() : request;
         PolarionProperties.WorkItemApi api = properties.getWorkItemApi();
+        String effectiveProjectId = effectiveProjectId(safeRequest, api);
         LinkedHashMap<String, PolarionCustomFieldRequest> merged =
                 new LinkedHashMap<String, PolarionCustomFieldRequest>();
 
         if (api != null) {
             appendCustomFields(merged, api.getDefaultCustomFields());
-            appendCustomFields(merged, projectCustomFields(api, safeRequest.getProjectId()));
+            appendCustomFields(merged, projectCustomFields(api, effectiveProjectId));
         }
         appendFields(merged, safeRequest.getFields());
         appendCustomFields(merged, safeRequest.getCustomFields());
@@ -369,6 +368,13 @@ public class WorkItemCreateApiRequestBuilder {
             }
         }
         return null;
+    }
+
+    private String effectiveProjectId(WorkItemCreateRequest safeRequest, PolarionProperties.WorkItemApi api) {
+        return firstText(
+                safeRequest.getProjectId(),
+                api == null ? null : api.getDefaultPolarionId(),
+                properties.getDefaultProjectId());
     }
 
     private List<String> copyStringList(List<String> values) {

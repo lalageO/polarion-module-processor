@@ -5,8 +5,10 @@ import com.example.polarionprocessor.config.PolarionProperties;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.boot.context.properties.EnableConfigurationProperties;
+import org.springframework.scheduling.annotation.EnableAsync;
 
 @SpringBootApplication
+@EnableAsync
 @EnableConfigurationProperties({ModuleProcessorProperties.class, PolarionProperties.class})
 public class PolarionModuleProcessorApplication {
 

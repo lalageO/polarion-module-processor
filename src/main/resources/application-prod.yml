@@ -14,7 +14,7 @@ server:
 module-processor:
 
   # 任务输出根目录 Polarion_Document2Workitem/outputs/{jobId}/
-  output-dir: outputs   
+  output-dir: outputs
 
   # 请求和 XML 都没有提供模块名时使用的兜底模块名。
   default-module-name: unknown-module
@@ -50,10 +50,7 @@ polarion:
     token: ""
 
   svn:
-    # Linux 上的 SVN 可执行文件。若 svn 已在 PATH 中，保持 "svn"；否则写绝对路径，如 "/usr/bin/svn"。
     executable: "svn"
-
-    # SVN 账号，用于 checkout、update、commit。
     username: "polarion"
     password: "uaorar"
 
@@ -61,8 +58,6 @@ polarion:
     update-timeout-seconds: 60
     commit-timeout-seconds: 60
     default-commit-message: "update module.xml"
-
-    # 第一次下载 module.xml 使用的临时 checkout 目录，读取完成后删除。
     cleanup-temp-dir: true
 
     # 提交用工作副本位于 outputs/{jobId}/svn-workspace。
@@ -73,10 +68,9 @@ polarion:
     # 公司内部 createItem 接口地址。
     create-url: "http://10.179.60.154:30000/workitem/ws/create"
 
-    # createItem 请求体默认值。
     default-polarion-id: "FDP_Demo"
     default-type: "stakeholderrequirement"
-    default-author-id: "pingping.xu" # 默认作者。请求字段 anthorName或 authorId 会覆盖该值。
+    default-author-id: "pingping.xu"
 
     connect-timeout-ms: 5000
     read-timeout-ms: 30000
