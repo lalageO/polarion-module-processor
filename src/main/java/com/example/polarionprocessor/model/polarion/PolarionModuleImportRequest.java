@@ -13,6 +13,7 @@ import java.util.Map;
 public class PolarionModuleImportRequest {
 
     /** Polarion 模块页面 URL，例如 http://alm.freetech.com/polarion/#/project/FDP_Demo/wiki/10%20Stakeholder%20Requirement/R171e。 */
+    @JsonAlias({"url", "documentUrl"})
     private String moduleUrl;
 
     /** 从 moduleUrl 中解析出的站点基础地址，例如 http://alm.freetech.com。 */
@@ -30,8 +31,8 @@ public class PolarionModuleImportRequest {
     /** 要创建的 Work Item 类型。 */
     private String workItemType;
 
-    /** 创建 Work Item 时使用的作者账号；外部 anthorName 作为历史兼容别名。 */
-    @JsonAlias({"anthorName"})
+    /** 创建 Work Item 时使用的作者账号；外部 anthorName/username 作为兼容别名。 */
+    @JsonAlias({"anthorName", "username", "userName"})
     private String authorId;
 
     /** 对齐远程 WorkItemWsDto.authorName，未传 authorId 时也可作为作者账号兜底。 */
