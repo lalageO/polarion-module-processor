@@ -36,11 +36,13 @@ public class ParagraphScanner {
                 }
                 String paragraphId = paragraph.id();
                 String sourceText = TextUtils.normalizeSpaces(paragraph.text());
+                boolean insideTable = isInsideTable(htmlContent, matcher.start());
 
                 ParagraphInfo info = new ParagraphInfo();
                 info.setSeq(seq++);
                 info.setParagraphId(paragraphId);
                 info.setSourceText(sourceText);
+                info.setInsideTable(insideTable);
                 info.setOutlineNo(TextUtils.extractOutlineNo(sourceText));
                 info.setSectionNo(TextUtils.extractSectionNo(sourceText));
                 info.setSourceOuterHtml(sourceOuterHtml);
@@ -54,5 +56,25 @@ public class ParagraphScanner {
         } catch (RuntimeException e) {
             throw new ModuleProcessException("HTML_PARSE_FAILED", "HTML parse failed", e);
         }
+    }
+
+    private boolean isInsideTable(String htmlContent, int paragraphStart) {
+        if (htmlContent == null || paragraphStart <= 0) {
+            return false;
+        }
+        String before = htmlContent.substring(0, Math.min(paragraphStart, htmlContent.length()));
+        int lastTableStart = lastIndexOfIgnoreCase(before, "<table");
+        if (lastTableStart < 0) {
+            return false;
+        }
+        int lastTableEnd = lastIndexOfIgnoreCase(before, "</table");
+        return lastTableEnd < lastTableStart;
+    }
+
+    private int lastIndexOfIgnoreCase(String value, String pattern) {
+        if (value == null || pattern == null) {
+            return -1;
+        }
+        return value.toLowerCase(java.util.Locale.ROOT).lastIndexOf(pattern.toLowerCase(java.util.Locale.ROOT));
     }
 }

@@ -48,11 +48,13 @@ public class NumberedItemGrouper {
     }
 
     private boolean isItemAnchor(ParagraphInfo paragraph) {
-        return TextUtils.hasText(paragraph.getOutlineNo());
+        return !Boolean.TRUE.equals(paragraph.getInsideTable()) && TextUtils.hasText(paragraph.getOutlineNo());
     }
 
     private boolean isGroupBoundary(ParagraphInfo paragraph) {
-        return TextUtils.hasText(paragraph.getOutlineNo()) || TextUtils.hasText(paragraph.getSectionNo());
+        return Boolean.TRUE.equals(paragraph.getInsideTable())
+                || TextUtils.hasText(paragraph.getOutlineNo())
+                || TextUtils.hasText(paragraph.getSectionNo());
     }
 
     /**

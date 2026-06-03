@@ -35,6 +35,8 @@ import com.example.polarionprocessor.service.shared.ParagraphScanner;
 import com.example.polarionprocessor.service.shared.TitleGenerator;
 import com.example.polarionprocessor.util.FileUtils;
 import com.example.polarionprocessor.util.TextUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 
 import java.io.IOException;
@@ -53,6 +55,8 @@ import java.util.Map;
 @Service
 public class PolarionModuleImportService {
 
+    private static final Logger LOGGER = LoggerFactory.getLogger(PolarionModuleImportService.class);
+
     private static final String ORIGINAL_XML_FILE = "original_module.xml";
     private static final String PROCESSED_XML_FILE = "module.xml";
     private static final String RESULT_JSON_FILE = "import_result.json";
@@ -60,6 +64,7 @@ public class PolarionModuleImportService {
     private static final String AI_STATUS_CALLING = "CALLING";
     private static final String AI_STATUS_SUCCESS = "SUCCESS";
     private static final String AI_STATUS_FAILED = "FAILED";
+    private static final String AI_STATUS_SKIPPED = "SKIPPED";
     private static final DateTimeFormatter JOB_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
 
     private final ModuleProcessorProperties moduleProperties;
@@ -221,6 +226,7 @@ public class PolarionModuleImportService {
                                           Path previewCsvFile,
                                           Path aiDebugFile) throws IOException {
         if (!aiGenerationService.shouldRun(resolved.dryRun)) {
+            LOGGER.info("AI generation skipped by configuration: dryRun={}", resolved.dryRun);
             return;
         }
         jobResult.getFiles().setAiDebug(aiDebugWriter.fileName());
@@ -228,13 +234,35 @@ public class PolarionModuleImportService {
         resultWriter.writeAtomic(resultJsonFile, jobResult);
         csvWriter.write(previewCsvFile, jobResult.getItems());
 
+        int candidateCount = countCandidates(jobResult.getItems());
+        LOGGER.info("AI generation started: jobId={}, projectId={}, candidateCount={}, dryRun={}",
+                jobResult.getJobId(),
+                resolved.projectId,
+                candidateCount,
+                resolved.dryRun);
+        if (candidateCount == 0) {
+            markNonCandidatesAiSkipped(jobResult);
+            jobResult.setStatus(JobStatus.AI_SKIPPED.name());
+            aiDebugWriter.append(aiDebugFile, buildNoCandidateAiDebugRecord(jobResult));
+            resultWriter.writeAtomic(resultJsonFile, jobResult);
+            csvWriter.write(previewCsvFile, jobResult.getItems());
+            LOGGER.info("AI generation skipped: no candidate items, jobId={}", jobResult.getJobId());
+            return;
+        }
+
         for (PolarionImportItemResult item : jobResult.getItems()) {
             if (!Boolean.TRUE.equals(item.getCandidate())) {
+                item.setAiStatus(AI_STATUS_SKIPPED);
                 continue;
             }
             item.setAiStatus(AI_STATUS_CALLING);
             item.setAiErrorMessage(null);
             item.setAiDebugRef(buildAiDebugRef(item));
+            LOGGER.info("Generating AI fields: jobId={}, seq={}, outlineNo={}, itemKey={}",
+                    jobResult.getJobId(),
+                    item.getSeq(),
+                    item.getOutlineNo(),
+                    item.getItemKey());
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, jobResult.getItems());
 
@@ -247,11 +275,25 @@ public class PolarionModuleImportService {
             updateSummary(jobResult, jobResult.getSummary().getParagraphCount());
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, jobResult.getItems());
+            LOGGER.info("AI fields generated: jobId={}, seq={}, aiStatus={}, title={}",
+                    jobResult.getJobId(),
+                    item.getSeq(),
+                    item.getAiStatus(),
+                    TextUtils.truncateAtWordBoundary(item.getTitle(), 80));
         }
 
         jobResult.setStatus(JobStatus.AI_COMPLETED.name());
         resultWriter.writeAtomic(resultJsonFile, jobResult);
         csvWriter.write(previewCsvFile, jobResult.getItems());
+        LOGGER.info("AI generation finished: jobId={}, candidateCount={}", jobResult.getJobId(), candidateCount);
+    }
+
+    private void markNonCandidatesAiSkipped(PolarionImportJobResult jobResult) {
+        for (PolarionImportItemResult item : jobResult.getItems()) {
+            if (!Boolean.TRUE.equals(item.getCandidate())) {
+                item.setAiStatus(AI_STATUS_SKIPPED);
+            }
+        }
     }
 
     private AiGenerateRequest buildAiRequest(ResolvedRequest resolved,
@@ -326,6 +368,17 @@ public class PolarionModuleImportService {
             record.setSuccess(Boolean.FALSE);
             record.setErrorMessage("AI result is empty");
         }
+        return record;
+    }
+
+    private AiDebugRecord buildNoCandidateAiDebugRecord(PolarionImportJobResult jobResult) {
+        AiDebugRecord record = new AiDebugRecord();
+        record.setRef("ai-no-candidate");
+        record.setJobId(jobResult.getJobId());
+        record.setProjectId(jobResult.getProjectId());
+        record.setModuleName(jobResult.getModuleName());
+        record.setSuccess(Boolean.TRUE);
+        record.setErrorMessage("No candidate items; AI was not called");
         return record;
     }
 

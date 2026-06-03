@@ -11,6 +11,7 @@ import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.web.client.HttpStatusCodeException;
 import org.springframework.web.client.RestClientException;
 import org.springframework.web.client.RestTemplate;
 
@@ -42,6 +43,9 @@ public class OpenAiCompatibleChatClient implements AiChatClient {
                 return doChat(prompt);
             } catch (RuntimeException e) {
                 lastException = e;
+                if (attempt < maxAttempts) {
+                    sleep(valueOrDefault(properties.getRetryIntervalMs(), 1000));
+                }
             }
         }
         throw lastException == null
@@ -50,9 +54,10 @@ public class OpenAiCompatibleChatClient implements AiChatClient {
     }
 
     private AiChatResponse doChat(String prompt) {
+        String url = chatUrl();
         try {
             String rawResponse = objectMapper.writeValueAsString(restTemplate().postForObject(
-                    chatUrl(),
+                    url,
                     new HttpEntity<Map<String, Object>>(requestBody(prompt), headers()),
                     Object.class));
             JsonNode root = objectMapper.readTree(rawResponse);
@@ -62,8 +67,12 @@ public class OpenAiCompatibleChatClient implements AiChatClient {
             response.setContent(extractContent(root));
             response.setUsage(extractUsage(root.path("usage")));
             return response;
+        } catch (HttpStatusCodeException e) {
+            throw new IllegalStateException("AI HTTP call failed: url=" + url
+                    + ", status=" + e.getRawStatusCode()
+                    + ", body=" + abbreviate(e.getResponseBodyAsString(), 300), e);
         } catch (RestClientException e) {
-            throw new IllegalStateException("AI HTTP call failed: " + e.getMessage(), e);
+            throw new IllegalStateException("AI HTTP call failed: url=" + url + ", " + e.getMessage(), e);
         } catch (Exception e) {
             throw new IllegalStateException("AI response parse failed: " + e.getMessage(), e);
         }
@@ -153,5 +162,24 @@ public class OpenAiCompatibleChatClient implements AiChatClient {
 
     private int valueOrDefault(Integer value, int fallback) {
         return value == null ? fallback : value;
+    }
+
+    private void sleep(int millis) {
+        if (millis <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("AI retry interrupted", e);
+        }
+    }
+
+    private String abbreviate(String value, int maxLength) {
+        if (value == null || value.length() <= maxLength) {
+            return value;
+        }
+        return value.substring(0, maxLength);
     }
 }

@@ -135,10 +135,12 @@ ai:
   model: "primary"
   api-key: ""
 
-  # 模型接口超时和重试配置。
+  # 模型接口超时、重试和调用间隔配置。
   connect-timeout-ms: 10000
-  read-timeout-ms: 10000
-  max-retries: 2
+  read-timeout-ms: 180000
+  max-retries: 1
+  retry-interval-ms: 1000
+  request-interval-ms: 1000
   temperature: 0.2 # 生成文本的随机程度，0.2 表示较为保守，适合生成结构化内容。
 
   # 部分兼容网关不支持 response_format=json_object，默认不发送该参数。

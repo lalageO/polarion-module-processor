@@ -35,6 +35,12 @@ public class AiProperties {
 
     private Integer maxRetries = 1;
 
+    /** 单次失败重试前等待时间。 */
+    private Integer retryIntervalMs = 1000;
+
+    /** 每个 item 调用模型后等待时间，用于规避模型网关频控。 */
+    private Integer requestIntervalMs = 0;
+
     private Double temperature = 0.2D;
 
     /** 是否请求模型按 JSON object 输出；部分 OpenAI-compatible 服务不支持，默认关闭。 */
@@ -124,6 +130,22 @@ public class AiProperties {
 
     public void setMaxRetries(Integer maxRetries) {
         this.maxRetries = maxRetries;
+    }
+
+    public Integer getRetryIntervalMs() {
+        return retryIntervalMs;
+    }
+
+    public void setRetryIntervalMs(Integer retryIntervalMs) {
+        this.retryIntervalMs = retryIntervalMs;
+    }
+
+    public Integer getRequestIntervalMs() {
+        return requestIntervalMs;
+    }
+
+    public void setRequestIntervalMs(Integer requestIntervalMs) {
+        this.requestIntervalMs = requestIntervalMs;
     }
 
     public Double getTemperature() {

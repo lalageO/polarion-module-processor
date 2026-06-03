@@ -13,6 +13,9 @@ public enum JobStatus {
     /** 正在顺序调用 AI 生成标题和字段。 */
     AI_GENERATING,
 
+    /** AI 已启用但没有候选 item 可生成。 */
+    AI_SKIPPED,
+
     /** AI 生成阶段完成，但可能存在单项 AI 兜底。 */
     AI_COMPLETED,
 

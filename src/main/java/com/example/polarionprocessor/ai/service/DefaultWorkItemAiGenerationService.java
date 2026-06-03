@@ -85,6 +85,8 @@ public class DefaultWorkItemAiGenerationService implements WorkItemAiGenerationS
             result.setPrompt(prompt);
             result.setModel(properties.getModel());
             return result;
+        } finally {
+            sleep(valueOrDefault(properties.getRequestIntervalMs(), 0));
         }
     }
 
@@ -148,5 +150,21 @@ public class DefaultWorkItemAiGenerationService implements WorkItemAiGenerationS
             }
         }
         return null;
+    }
+
+    private int valueOrDefault(Integer value, int fallback) {
+        return value == null ? fallback : value;
+    }
+
+    private void sleep(int millis) {
+        if (millis <= 0) {
+            return;
+        }
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw new IllegalStateException("AI request interval interrupted", e);
+        }
     }
 }

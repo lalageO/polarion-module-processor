@@ -112,8 +112,10 @@ ai:
   model: "primary"
   api-key: ""
   connect-timeout-ms: 5000
-  read-timeout-ms: 60000
+  read-timeout-ms: 180000
   max-retries: 1
+  retry-interval-ms: 1000
+  request-interval-ms: 1000
   temperature: 0.2
   response-format-json: false
   run-in-dry-run: false

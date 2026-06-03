@@ -20,6 +20,9 @@ public class ParagraphInfo {
     /** Jsoup 提取并归一化后的可见段落文本。 */
     private String sourceText;
 
+    /** 当前 <p> 是否位于 table 内部。表格内容不参与 Work Item 识别和替换。 */
+    private Boolean insideTable;
+
     /** 精确的原始 <p>...</p> 片段，用于 hash 和问题排查。 */
     private String sourceOuterHtml;
 
@@ -73,6 +76,14 @@ public class ParagraphInfo {
 
     public void setSourceText(String sourceText) {
         this.sourceText = sourceText;
+    }
+
+    public Boolean getInsideTable() {
+        return insideTable;
+    }
+
+    public void setInsideTable(Boolean insideTable) {
+        this.insideTable = insideTable;
     }
 
     public String getSourceOuterHtml() {
