@@ -38,6 +38,9 @@ public class PolarionProperties {
     /** 创建 Work Item 时使用的 API 配置。 */
     private WorkItemApi workItemApi = new WorkItemApi();
 
+    /** 正式导入任务完成后的公司内部回调配置。 */
+    private ImportCallback importCallback = new ImportCallback();
+
     public String getBaseUrl() {
         return baseUrl;
     }
@@ -100,6 +103,14 @@ public class PolarionProperties {
 
     public void setWorkItemApi(WorkItemApi workItemApi) {
         this.workItemApi = workItemApi;
+    }
+
+    public ImportCallback getImportCallback() {
+        return importCallback;
+    }
+
+    public void setImportCallback(ImportCallback importCallback) {
+        this.importCallback = importCallback;
     }
 
     /**
@@ -398,6 +409,56 @@ public class PolarionProperties {
 
         public void setToken(String token) {
             this.token = token;
+        }
+    }
+
+    /**
+     * 任务完成回调公司内部后端系统的参数。
+     */
+    public static class ImportCallback {
+
+        /** 是否启用任务完成回调。 */
+        private Boolean enabled = false;
+
+        /** 回调 HTTP 地址，例如 http://10.179.60.154:7500/polarion/module/import/callback。 */
+        private String url = "";
+
+        /** HTTP 连接超时时间。 */
+        private Integer connectTimeoutMs = 5000;
+
+        /** HTTP 读取超时时间。 */
+        private Integer readTimeoutMs = 10000;
+
+        public Boolean getEnabled() {
+            return enabled;
+        }
+
+        public void setEnabled(Boolean enabled) {
+            this.enabled = enabled;
+        }
+
+        public String getUrl() {
+            return url;
+        }
+
+        public void setUrl(String url) {
+            this.url = url;
+        }
+
+        public Integer getConnectTimeoutMs() {
+            return connectTimeoutMs;
+        }
+
+        public void setConnectTimeoutMs(Integer connectTimeoutMs) {
+            this.connectTimeoutMs = connectTimeoutMs;
+        }
+
+        public Integer getReadTimeoutMs() {
+            return readTimeoutMs;
+        }
+
+        public void setReadTimeoutMs(Integer readTimeoutMs) {
+            this.readTimeoutMs = readTimeoutMs;
         }
     }
 }

@@ -87,6 +87,7 @@ public class PolarionModuleImportService {
     private final WorkItemAiGenerationService aiGenerationService;
     private final AiDebugWriter aiDebugWriter;
     private final PolarionProgressLogWriter progressLogWriter;
+    private final PolarionImportCallbackNotifier callbackNotifier;
 
     public PolarionModuleImportService(ModuleProcessorProperties moduleProperties,
                                        PolarionProperties polarionProperties,
@@ -106,7 +107,8 @@ public class PolarionModuleImportService {
                                        PolarionImportPreviewCsvWriter csvWriter,
                                        WorkItemAiGenerationService aiGenerationService,
                                        AiDebugWriter aiDebugWriter,
-                                       PolarionProgressLogWriter progressLogWriter) {
+                                       PolarionProgressLogWriter progressLogWriter,
+                                       PolarionImportCallbackNotifier callbackNotifier) {
         this.moduleProperties = moduleProperties;
         this.polarionProperties = polarionProperties;
         this.moduleUrlParser = moduleUrlParser;
@@ -126,6 +128,7 @@ public class PolarionModuleImportService {
         this.aiGenerationService = aiGenerationService;
         this.aiDebugWriter = aiDebugWriter;
         this.progressLogWriter = progressLogWriter;
+        this.callbackNotifier = callbackNotifier;
     }
 
     /**
@@ -171,7 +174,7 @@ public class PolarionModuleImportService {
 
             if (resolved.dryRun) {
                 appendProgress(progressLogFile, "试运行完成：未创建 Work Item，也未提交 SVN。");
-                return buildResponse(true, "Dry-run completed", jobDir, jobResult);
+                return notifyAndReturn(buildResponse(true, "Dry-run completed", jobDir, jobResult));
             }
 
             createWorkItems(resolved, jobResult, resultJsonFile, previewCsvFile, progressLogFile);
@@ -186,7 +189,7 @@ public class PolarionModuleImportService {
                 updateSummary(jobResult, paragraphs.size());
                 resultWriter.writeAtomic(resultJsonFile, jobResult);
                 csvWriter.write(previewCsvFile, jobResult.getItems());
-                return buildResponse(false, "SVN commit failed", jobDir, jobResult);
+                return notifyAndReturn(buildResponse(false, "SVN commit failed", jobDir, jobResult));
             }
             appendProgress(progressLogFile, "SVN 提交完成。");
 
@@ -198,19 +201,19 @@ public class PolarionModuleImportService {
             csvWriter.write(previewCsvFile, jobResult.getItems());
             appendProgress(progressLogFile, "任务完成：创建 " + jobResult.getSummary().getCreatedCount()
                     + " 个，失败 " + jobResult.getSummary().getFailedCount() + " 个。");
-            return buildResponse(true, "Polarion module import completed", jobDir, jobResult);
+            return notifyAndReturn(buildResponse(true, "Polarion module import completed", jobDir, jobResult));
         } catch (ModuleProcessException e) {
             jobResult.setStatus(JobStatus.FAILED.name());
             appendProgress(progressLogFile, "任务失败：" + e.getErrorCode() + ": " + e.getMessage());
-            return buildFailureResponse(e.getErrorCode() + ": " + e.getMessage(), jobDir, jobResult);
+            return notifyAndReturn(buildFailureResponse(e.getErrorCode() + ": " + e.getMessage(), jobDir, jobResult));
         } catch (IOException e) {
             jobResult.setStatus(JobStatus.FAILED.name());
             appendProgress(progressLogFile, "任务失败：文件写入异常，" + e.getMessage());
-            return buildFailureResponse("FILE_WRITE_FAILED: " + e.getMessage(), jobDir, jobResult);
+            return notifyAndReturn(buildFailureResponse("FILE_WRITE_FAILED: " + e.getMessage(), jobDir, jobResult));
         } catch (RuntimeException e) {
             jobResult.setStatus(JobStatus.FAILED.name());
             appendProgress(progressLogFile, "任务失败：" + e.getClass().getSimpleName() + ": " + e.getMessage());
-            return buildFailureResponse("FAILED: " + e.getClass().getSimpleName() + ": " + e.getMessage(), jobDir, jobResult);
+            return notifyAndReturn(buildFailureResponse("FAILED: " + e.getClass().getSimpleName() + ": " + e.getMessage(), jobDir, jobResult));
         }
     }
 
@@ -669,6 +672,11 @@ public class PolarionModuleImportService {
                                                               PolarionImportJobResult jobResult) {
         PolarionModuleImportResponse response = buildResponse(false, message, jobDir, jobResult);
         response.setStatus(JobStatus.FAILED.name());
+        return response;
+    }
+
+    private PolarionModuleImportResponse notifyAndReturn(PolarionModuleImportResponse response) {
+        callbackNotifier.notifyFinished(response);
         return response;
     }
 

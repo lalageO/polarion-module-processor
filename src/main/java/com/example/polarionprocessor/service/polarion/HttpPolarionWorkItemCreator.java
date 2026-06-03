@@ -8,6 +8,7 @@ import com.example.polarionprocessor.model.polarion.WorkItemCreateResult;
 import com.example.polarionprocessor.util.TextUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpEntity;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -30,7 +31,7 @@ public class HttpPolarionWorkItemCreator implements PolarionWorkItemCreator {
     private final WorkItemCreateApiRequestBuilder requestBuilder;
 
     public HttpPolarionWorkItemCreator(PolarionProperties properties,
-                                       RestTemplate polarionWorkItemRestTemplate,
+                                       @Qualifier("polarionWorkItemRestTemplate") RestTemplate polarionWorkItemRestTemplate,
                                        WorkItemCreateApiRequestBuilder requestBuilder) {
         this.properties = properties;
         this.polarionWorkItemRestTemplate = polarionWorkItemRestTemplate;

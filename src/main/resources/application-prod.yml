@@ -1,5 +1,3 @@
-#   java -Dfile.encoding=UTF-8 -jar polarion-module-processor.jar --spring.config.location=./application-prod.yml
-
 server:
   port: 8088
 
@@ -44,7 +42,7 @@ polarion:
     cleanup-temp-dir: true
 
     # 提交用工作副本位于 outputs/{jobId}/svn-workspace。
-    cleanup-commit-workspace: false # false 表示保留该目录便于排查；稳定后可改为 true。
+    cleanup-commit-workspace: false 
 
   work-item-api:
     enabled: true
@@ -60,9 +58,7 @@ polarion:
     # 全局默认 customFields。保持空列表，避免所有项目都带上某个项目的特例字段。
     default-custom-fields: []
 
-    # 按项目启用的 customFields 模板。key 必须和 moduleUrl 解析出的 projectId / createItem 的 polarionId 一致。
-    # 这里存字段类型和枚举候选项，给后续 AI 选择使用；没有 value 的模板字段不会直接发给 createItem。
-    # AI 或请求传入同 id 的 value 后，会复用这里的 type/enum-options 并发送最终字段。
+    # 按项目启用的 customFields 模板。
     project-custom-fields:
       RMT_Platform:
         - id: "requirementsource"
@@ -121,12 +117,17 @@ polarion:
           multi: false
           type: "text/html"
 
-    # 预留给 createItem 接口认证。当前接口不使用 token 认证。
     auth-type: "NONE"
     token: ""
 
+  import-callback:
+    enabled: true
+    # 公司内部后端回调地址(test env)
+    url: "http://10.180.5.111:7500/polarion/module/import/callback"
+    connect-timeout-ms: 5000
+    read-timeout-ms: 10000
+
 ai:
-  # 确认模型服务和提示词稳定后再改为 true。
   enabled: false
   provider: "openai-compatible"
   base-url: "http://llm.freetech.com/v1"

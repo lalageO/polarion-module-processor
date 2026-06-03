@@ -103,6 +103,11 @@ polarion:
           type: "text/html"
     auth-type: "NONE"
     token: ""
+  import-callback:
+    enabled: false
+    url: "http://10.180.5.111:7500/polarion/module/import/callback"
+    connect-timeout-ms: 5000
+    read-timeout-ms: 10000
 
 ai:
   enabled: false

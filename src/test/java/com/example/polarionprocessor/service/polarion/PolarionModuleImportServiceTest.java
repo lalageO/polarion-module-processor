@@ -289,6 +289,36 @@ class PolarionModuleImportServiceTest {
     }
 
     @Test
+    void importCallbackShouldPostThreeStringFields() {
+        PolarionProperties properties = new PolarionProperties();
+        properties.getImportCallback().setEnabled(true);
+        properties.getImportCallback().setUrl("http://10.179.60.154:7500/polarion/module/import/callback");
+        RestTemplate restTemplate = new RestTemplate();
+        MockRestServiceServer server = MockRestServiceServer.createServer(restTemplate);
+        PolarionImportCallbackNotifier notifier =
+                new PolarionImportCallbackNotifier(properties, restTemplate, new ObjectMapper());
+        PolarionModuleImportResponse response = new PolarionModuleImportResponse();
+        response.setSuccess(true);
+        response.setJobId("R171e3_20260601_112744_578");
+        response.setProjectId("FDP_Demo");
+        response.setStatus("COMPLETED");
+        response.setMessage("Polarion module import completed");
+
+        server.expect(requestTo("http://10.179.60.154:7500/polarion/module/import/callback"))
+                .andExpect(method(HttpMethod.POST))
+                .andExpect(content().contentTypeCompatibleWith(MediaType.APPLICATION_JSON))
+                .andExpect(jsonPath("$.jobId").value("R171e3_20260601_112744_578"))
+                .andExpect(jsonPath("$.statusCode").value("COMPLETED"))
+                .andExpect(jsonPath("$.result").value(org.hamcrest.Matchers.containsString("\"status\":\"COMPLETED\"")))
+                .andExpect(jsonPath("$.result").value(org.hamcrest.Matchers.containsString("\"success\":true")))
+                .andRespond(withSuccess("{\"success\":true}", MediaType.APPLICATION_JSON));
+
+        notifier.notifyFinished(response);
+
+        server.verify();
+    }
+
+    @Test
     void polarionImportDryRunProducesJsonAndCsv() throws Exception {
         RecordingCreator creator = new RecordingCreator();
         PolarionModuleImportService service = buildService(creator, new StaticDownloader(sampleXml()), new ModuleXmlRewriter());
@@ -506,7 +536,8 @@ class PolarionModuleImportServiceTest {
                 new PolarionImportPreviewCsvWriter(moduleProperties),
                 new NoopAiGenerationService(),
                 new AiDebugWriter(new AiProperties(), new ObjectMapper()),
-                new PolarionProgressLogWriter());
+                new PolarionProgressLogWriter(),
+                new PolarionImportCallbackNotifier(polarionProperties, new RestTemplate(), new ObjectMapper()));
     }
 
     private PolarionModuleImportRequest request(boolean dryRun) {

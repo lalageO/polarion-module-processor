@@ -20,6 +20,15 @@ public class PolarionWorkItemHttpConfig {
         return new RestTemplate(requestFactory);
     }
 
+    @Bean
+    public RestTemplate polarionImportCallbackRestTemplate(PolarionProperties properties) {
+        PolarionProperties.ImportCallback callback = properties.getImportCallback();
+        SimpleClientHttpRequestFactory requestFactory = new SimpleClientHttpRequestFactory();
+        requestFactory.setConnectTimeout(valueOrDefault(callback == null ? null : callback.getConnectTimeoutMs(), 5000));
+        requestFactory.setReadTimeout(valueOrDefault(callback == null ? null : callback.getReadTimeoutMs(), 10000));
+        return new RestTemplate(requestFactory);
+    }
+
     private int valueOrDefault(Integer value, int fallback) {
         return value == null ? fallback : value;
     }
