@@ -9,6 +9,7 @@ public class PolarionImportFiles {
     private String processedXml;
     private String csv;
     private String aiDebug;
+    private String progressLog;
 
     public String getOriginalXml() {
         return originalXml;
@@ -40,5 +41,13 @@ public class PolarionImportFiles {
 
     public void setAiDebug(String aiDebug) {
         this.aiDebug = aiDebug;
+    }
+
+    public String getProgressLog() {
+        return progressLog;
+    }
+
+    public void setProgressLog(String progressLog) {
+        this.progressLog = progressLog;
     }
 }

@@ -1,5 +1,6 @@
 package com.example.polarionprocessor.controller;
 
+import com.example.polarionprocessor.config.ModuleProcessorProperties;
 import com.example.polarionprocessor.enums.JobStatus;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportResponse;
@@ -10,15 +11,25 @@ import com.example.polarionprocessor.service.shared.ModuleProcessException;
 import com.example.polarionprocessor.util.TextUtils;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.springframework.http.MediaType;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.io.IOException;
 import java.io.UnsupportedEncodingException;
 import java.net.URLDecoder;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 
 /**
  * 正式业务接口：从 Polarion 下载 module.xml，创建真实 Work Item，并生成替换后的 XML。
@@ -27,14 +38,20 @@ import java.net.URLDecoder;
 @RequestMapping("/api/polarion/module")
 public class PolarionModuleImportController {
 
+    private static final String PROGRESS_LOG_FILE = "progress.log";
+    private static final DateTimeFormatter JOB_TIME_FORMAT = DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS");
+
     private final ObjectMapper objectMapper;
+    private final ModuleProcessorProperties moduleProperties;
     private final PolarionModuleUrlParser moduleUrlParser;
     private final PolarionModuleImportAsyncExecutor importAsyncExecutor;
 
     public PolarionModuleImportController(ObjectMapper objectMapper,
+                                          ModuleProcessorProperties moduleProperties,
                                           PolarionModuleUrlParser moduleUrlParser,
                                           PolarionModuleImportAsyncExecutor importAsyncExecutor) {
         this.objectMapper = objectMapper;
+        this.moduleProperties = moduleProperties;
         this.moduleUrlParser = moduleUrlParser;
         this.importAsyncExecutor = importAsyncExecutor;
     }
@@ -53,12 +70,35 @@ public class PolarionModuleImportController {
         }
         try {
             validateRequest(request);
+            ensureJobId(request);
         } catch (ModuleProcessException e) {
             return ResponseEntity.status(HttpStatus.BAD_REQUEST)
                     .body(PolarionModuleImportResponse.failure(e.getErrorCode() + ": " + e.getMessage()));
         }
         importAsyncExecutor.submit(request);
         return ResponseEntity.status(HttpStatus.ACCEPTED).body(buildSubmittedResponse(request));
+    }
+
+    @GetMapping(value = "/import/{jobId}/progress-log", produces = "text/plain;charset=UTF-8")
+    public ResponseEntity<String> readProgressLog(@PathVariable String jobId) {
+        Path logFile;
+        try {
+            logFile = resolveJobFile(jobId, PROGRESS_LOG_FILE);
+        } catch (ModuleProcessException e) {
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST)
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body(e.getErrorCode() + ": " + e.getMessage());
+        }
+        if (!Files.exists(logFile)) {
+            return ResponseEntity.ok("任务已提交，进度日志尚未生成，请稍后刷新。");
+        }
+        try {
+            return ResponseEntity.ok(new String(Files.readAllBytes(logFile), StandardCharsets.UTF_8));
+        } catch (IOException e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                    .contentType(MediaType.TEXT_PLAIN)
+                    .body("PROGRESS_LOG_READ_FAILED: " + e.getMessage());
+        }
     }
 
     /**
@@ -113,7 +153,9 @@ public class PolarionModuleImportController {
     }
 
     private void applyFormValue(PolarionModuleImportRequest request, String key, String value) {
-        if ("moduleurl".equals(key) || "url".equals(key) || "documenturl".equals(key)) {
+        if ("jobid".equals(key)) {
+            request.setJobId(value);
+        } else if ("moduleurl".equals(key) || "url".equals(key) || "documenturl".equals(key)) {
             request.setModuleUrl(value);
         } else if ("baseurl".equals(key)) {
             request.setBaseUrl(value);
@@ -141,6 +183,7 @@ public class PolarionModuleImportController {
     private boolean isKnownFormKey(String key) {
         String normalized = normalizeFormKey(key);
         return "moduleurl".equals(normalized)
+                || "jobid".equals(normalized)
                 || "url".equals(normalized)
                 || "documenturl".equals(normalized)
                 || "baseurl".equals(normalized)
@@ -199,14 +242,49 @@ public class PolarionModuleImportController {
                 "moduleUrl is required, or baseUrl/projectId/moduleFolder/moduleName must all be provided");
     }
 
+    private void ensureJobId(PolarionModuleImportRequest request) {
+        if (TextUtils.hasText(request.getJobId())) {
+            request.setJobId(sanitizeJobId(request.getJobId()));
+            return;
+        }
+        request.setJobId(buildJobId(request.getModuleName()));
+    }
+
+    private String buildJobId(String moduleName) {
+        return TextUtils.sanitizePathPart(moduleName) + "_" + JOB_TIME_FORMAT.format(LocalDateTime.now());
+    }
+
+    private String sanitizeJobId(String jobId) {
+        String sanitized = TextUtils.sanitizePathPart(jobId);
+        if (".".equals(sanitized) || "..".equals(sanitized)) {
+            return "job_" + JOB_TIME_FORMAT.format(LocalDateTime.now());
+        }
+        return sanitized;
+    }
+
+    private Path resolveJobFile(String jobId, String fileName) {
+        if (!TextUtils.hasText(jobId)) {
+            throw new ModuleProcessException("REQUEST_PARAMETER_INVALID", "jobId is required");
+        }
+        Path outputRoot = Paths.get(moduleProperties.getOutputDir()).toAbsolutePath().normalize();
+        Path jobDir = outputRoot.resolve(jobId).normalize();
+        if (!jobDir.startsWith(outputRoot)) {
+            throw new ModuleProcessException("REQUEST_PARAMETER_INVALID", "jobId is invalid");
+        }
+        return jobDir.resolve(fileName).normalize();
+    }
+
     private PolarionModuleImportResponse buildSubmittedResponse(PolarionModuleImportRequest request) {
         PolarionModuleImportResponse response = new PolarionModuleImportResponse();
         response.setSuccess(true);
+        response.setJobId(request.getJobId());
         response.setStatus(JobStatus.SUBMITTED.name());
         response.setProjectId(request.getProjectId());
         response.setModuleFolder(request.getModuleFolder());
         response.setModuleName(request.getModuleName());
         response.setDryRun(request.getDryRun() == null ? Boolean.FALSE : request.getDryRun());
+        response.setOutputDir(Paths.get(moduleProperties.getOutputDir()).resolve(request.getJobId()).toString().replace('\\', '/'));
+        response.setProgressLogFile(PROGRESS_LOG_FILE);
         response.setMessage("任务已提交，正在处理中");
         return response;
     }

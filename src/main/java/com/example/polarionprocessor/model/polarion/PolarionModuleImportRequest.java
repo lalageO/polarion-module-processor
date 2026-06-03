@@ -12,6 +12,9 @@ import java.util.Map;
  */
 public class PolarionModuleImportRequest {
 
+    /** 后台任务 id；Controller 异步提交前生成，Service 直接使用。 */
+    private String jobId;
+
     /** Polarion 模块页面 URL，例如 http://alm.freetech.com/polarion/#/project/FDP_Demo/wiki/10%20Stakeholder%20Requirement/R171e。 */
     @JsonAlias({"url", "documentUrl"})
     private String moduleUrl;
@@ -89,6 +92,14 @@ public class PolarionModuleImportRequest {
 
     /** 精确传给 Work Item 创建 API 的 customFields。 */
     private List<PolarionCustomFieldRequest> customFields = new ArrayList<PolarionCustomFieldRequest>();
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
 
     public String getModuleUrl() {
         return moduleUrl;

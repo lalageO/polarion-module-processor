@@ -1,21 +1,28 @@
 package com.example.polarionprocessor.controller;
 
 import com.example.polarionprocessor.model.polarion.PolarionModuleImportRequest;
+import com.example.polarionprocessor.config.ModuleProcessorProperties;
 import com.example.polarionprocessor.service.polarion.PolarionModuleImportAsyncExecutor;
 import com.example.polarionprocessor.service.polarion.PolarionModuleUrlParser;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
 import org.mockito.ArgumentCaptor;
 import org.springframework.http.MediaType;
 import org.springframework.test.web.servlet.MockMvc;
 import org.springframework.test.web.servlet.setup.MockMvcBuilders;
 
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
 import java.net.URLEncoder;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.verify;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.content;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -23,6 +30,9 @@ class PolarionModuleImportControllerTest {
 
     private static final String MODULE_URL =
             "http://alm.freetech.com/polarion/#/project/FDP_Demo/wiki/10%20Stakeholder%20Requirement/R171e4";
+
+    @TempDir
+    Path tempDir;
 
     @Test
     void jsonRequestShouldAcceptFrontendUrlAndUsernameAliases() throws Exception {
@@ -34,6 +44,8 @@ class PolarionModuleImportControllerTest {
                         .content("{\"url\":\"" + MODULE_URL + "\",\"username\":\"custom.author\"}"))
                 .andExpect(status().isAccepted())
                 .andExpect(jsonPath("$.status").value("SUBMITTED"))
+                .andExpect(jsonPath("$.jobId").exists())
+                .andExpect(jsonPath("$.progressLogFile").value("progress.log"))
                 .andExpect(jsonPath("$.projectId").value("FDP_Demo"))
                 .andExpect(jsonPath("$.moduleName").value("R171e4"));
 
@@ -87,9 +99,26 @@ class PolarionModuleImportControllerTest {
         assertEquals(explicitModuleURI, captor.getValue().getModuleURI());
     }
 
+    @Test
+    void progressLogEndpointShouldReadJobProgressFile() throws Exception {
+        PolarionModuleImportAsyncExecutor executor = mock(PolarionModuleImportAsyncExecutor.class);
+        MockMvc mockMvc = mockMvc(executor);
+        Path jobDir = tempDir.resolve("job-001");
+        Files.createDirectories(jobDir);
+        Files.write(jobDir.resolve("progress.log"),
+                "任务已启动\n正在创建 Work Item\n".getBytes(StandardCharsets.UTF_8));
+
+        mockMvc.perform(get("/api/polarion/module/import/job-001/progress-log"))
+                .andExpect(status().isOk())
+                .andExpect(content().string(org.hamcrest.Matchers.containsString("正在创建 Work Item")));
+    }
+
     private MockMvc mockMvc(PolarionModuleImportAsyncExecutor executor) {
+        ModuleProcessorProperties moduleProperties = new ModuleProcessorProperties();
+        moduleProperties.setOutputDir(tempDir.toString());
         return MockMvcBuilders.standaloneSetup(new PolarionModuleImportController(
                 new ObjectMapper(),
+                moduleProperties,
                 new PolarionModuleUrlParser(),
                 executor)).build();
     }

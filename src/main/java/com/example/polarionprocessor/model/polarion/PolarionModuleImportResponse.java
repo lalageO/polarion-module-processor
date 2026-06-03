@@ -26,6 +26,7 @@ public class PolarionModuleImportResponse {
     private String resultJsonFile;
     private String previewCsvFile;
     private String aiDebugFile;
+    private String progressLogFile;
     private String svnCommitStatus;
     private String svnRevision;
     private String svnErrorMessage;
@@ -197,6 +198,14 @@ public class PolarionModuleImportResponse {
 
     public void setAiDebugFile(String aiDebugFile) {
         this.aiDebugFile = aiDebugFile;
+    }
+
+    public String getProgressLogFile() {
+        return progressLogFile;
+    }
+
+    public void setProgressLogFile(String progressLogFile) {
+        this.progressLogFile = progressLogFile;
     }
 
     public String getSvnCommitStatus() {

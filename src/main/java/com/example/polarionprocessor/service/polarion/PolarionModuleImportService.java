@@ -61,6 +61,7 @@ public class PolarionModuleImportService {
     private static final String PROCESSED_XML_FILE = "module.xml";
     private static final String RESULT_JSON_FILE = "import_result.json";
     private static final String PREVIEW_CSV_FILE = "import_preview.csv";
+    private static final String PROGRESS_LOG_FILE = "progress.log";
     private static final String AI_STATUS_CALLING = "CALLING";
     private static final String AI_STATUS_SUCCESS = "SUCCESS";
     private static final String AI_STATUS_FAILED = "FAILED";
@@ -85,6 +86,7 @@ public class PolarionModuleImportService {
     private final PolarionImportPreviewCsvWriter csvWriter;
     private final WorkItemAiGenerationService aiGenerationService;
     private final AiDebugWriter aiDebugWriter;
+    private final PolarionProgressLogWriter progressLogWriter;
 
     public PolarionModuleImportService(ModuleProcessorProperties moduleProperties,
                                        PolarionProperties polarionProperties,
@@ -103,7 +105,8 @@ public class PolarionModuleImportService {
                                        PolarionImportResultWriter resultWriter,
                                        PolarionImportPreviewCsvWriter csvWriter,
                                        WorkItemAiGenerationService aiGenerationService,
-                                       AiDebugWriter aiDebugWriter) {
+                                       AiDebugWriter aiDebugWriter,
+                                       PolarionProgressLogWriter progressLogWriter) {
         this.moduleProperties = moduleProperties;
         this.polarionProperties = polarionProperties;
         this.moduleUrlParser = moduleUrlParser;
@@ -122,6 +125,7 @@ public class PolarionModuleImportService {
         this.csvWriter = csvWriter;
         this.aiGenerationService = aiGenerationService;
         this.aiDebugWriter = aiDebugWriter;
+        this.progressLogWriter = progressLogWriter;
     }
 
     /**
@@ -129,20 +133,27 @@ public class PolarionModuleImportService {
      */
     public PolarionModuleImportResponse importModule(PolarionModuleImportRequest request) {
         ResolvedRequest resolved = resolveRequest(request);
-        String jobId = buildJobId(resolved.moduleName);
+        String jobId = firstText(resolved.jobId, buildJobId(resolved.moduleName));
+        resolved.jobId = jobId;
         Path jobDir = Paths.get(moduleProperties.getOutputDir()).resolve(jobId);
         Path originalFile = jobDir.resolve(ORIGINAL_XML_FILE);
         Path processedFile = jobDir.resolve(PROCESSED_XML_FILE);
         Path resultJsonFile = jobDir.resolve(RESULT_JSON_FILE);
         Path previewCsvFile = jobDir.resolve(PREVIEW_CSV_FILE);
         Path aiDebugFile = jobDir.resolve(aiDebugWriter.fileName());
+        Path progressLogFile = jobDir.resolve(progressLogWriter.fileName());
 
         PolarionImportJobResult jobResult = buildEmptyJobResult(jobId, resolved);
         try {
             FileUtils.ensureDirectory(jobDir);
+            appendProgress(progressLogFile, "任务已启动：项目 " + resolved.projectId
+                    + "，文档 " + resolved.moduleName + "。");
+            appendProgress(progressLogFile, "正在从 Polarion SVN 下载 module.xml。");
             String xmlContent = moduleXmlDownloader.download(resolved.baseUrl, resolved.projectId, resolved.moduleFolder, resolved.moduleName);
             FileUtils.writeUtf8(originalFile, xmlContent);
+            appendProgress(progressLogFile, "module.xml 下载完成，已保存原始文件。");
 
+            appendProgress(progressLogFile, "正在解析文档内容并识别候选 Work Item。");
             ModuleXmlContent moduleXmlContent = moduleXmlExtractor.extract(xmlContent);
             List<ParagraphInfo> paragraphs = paragraphScanner.scan(moduleXmlContent.getHtmlContent());
             List<PolarionImportItemResult> items = buildItems(resolved, moduleXmlContent.getHtmlContent(), paragraphs);
@@ -150,26 +161,34 @@ public class PolarionModuleImportService {
             jobResult.setItems(items);
             jobResult.setStatus(JobStatus.ITEMS_READY.name());
             updateSummary(jobResult, paragraphs.size());
+            appendProgress(progressLogFile, "识别完成：共扫描段落 " + paragraphs.size()
+                    + " 个，候选 Work Item " + jobResult.getSummary().getCandidateCount()
+                    + " 个，跳过 " + jobResult.getSummary().getSkippedCount() + " 个。");
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, items);
 
-            generateAiFieldsIfNeeded(resolved, jobResult, resultJsonFile, previewCsvFile, aiDebugFile);
+            generateAiFieldsIfNeeded(resolved, jobResult, resultJsonFile, previewCsvFile, aiDebugFile, progressLogFile);
 
             if (resolved.dryRun) {
+                appendProgress(progressLogFile, "试运行完成：未创建 Work Item，也未提交 SVN。");
                 return buildResponse(true, "Dry-run completed", jobDir, jobResult);
             }
 
-            createWorkItems(resolved, jobResult, resultJsonFile, previewCsvFile);
+            createWorkItems(resolved, jobResult, resultJsonFile, previewCsvFile, progressLogFile);
+            appendProgress(progressLogFile, "正在把创建成功的 Work Item 回写到 module.xml。");
             rewriteXml(moduleXmlContent, jobResult, processedFile);
+            appendProgress(progressLogFile, "module.xml 回写完成，正在提交 SVN。");
             SvnCommitResult svnCommitResult = commitToSvn(resolved, jobId, jobDir, processedFile);
             jobResult.setSvnCommitResult(svnCommitResult);
             if (!Boolean.TRUE.equals(svnCommitResult.getSuccess())) {
+                appendProgress(progressLogFile, "SVN 提交失败：" + svnCommitResult.getErrorMessage());
                 jobResult.setStatus(JobStatus.FAILED.name());
                 updateSummary(jobResult, paragraphs.size());
                 resultWriter.writeAtomic(resultJsonFile, jobResult);
                 csvWriter.write(previewCsvFile, jobResult.getItems());
                 return buildResponse(false, "SVN commit failed", jobDir, jobResult);
             }
+            appendProgress(progressLogFile, "SVN 提交完成。");
 
             jobResult.setStatus(hasErrors(jobResult.getItems())
                     ? JobStatus.COMPLETED_WITH_ERRORS.name()
@@ -177,15 +196,20 @@ public class PolarionModuleImportService {
             updateSummary(jobResult, paragraphs.size());
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, jobResult.getItems());
+            appendProgress(progressLogFile, "任务完成：创建 " + jobResult.getSummary().getCreatedCount()
+                    + " 个，失败 " + jobResult.getSummary().getFailedCount() + " 个。");
             return buildResponse(true, "Polarion module import completed", jobDir, jobResult);
         } catch (ModuleProcessException e) {
             jobResult.setStatus(JobStatus.FAILED.name());
+            appendProgress(progressLogFile, "任务失败：" + e.getErrorCode() + ": " + e.getMessage());
             return buildFailureResponse(e.getErrorCode() + ": " + e.getMessage(), jobDir, jobResult);
         } catch (IOException e) {
             jobResult.setStatus(JobStatus.FAILED.name());
+            appendProgress(progressLogFile, "任务失败：文件写入异常，" + e.getMessage());
             return buildFailureResponse("FILE_WRITE_FAILED: " + e.getMessage(), jobDir, jobResult);
         } catch (RuntimeException e) {
             jobResult.setStatus(JobStatus.FAILED.name());
+            appendProgress(progressLogFile, "任务失败：" + e.getClass().getSimpleName() + ": " + e.getMessage());
             return buildFailureResponse("FAILED: " + e.getClass().getSimpleName() + ": " + e.getMessage(), jobDir, jobResult);
         }
     }
@@ -224,9 +248,11 @@ public class PolarionModuleImportService {
                                           PolarionImportJobResult jobResult,
                                           Path resultJsonFile,
                                           Path previewCsvFile,
-                                          Path aiDebugFile) throws IOException {
+                                          Path aiDebugFile,
+                                          Path progressLogFile) throws IOException {
         if (!aiGenerationService.shouldRun(resolved.dryRun)) {
             LOGGER.info("AI generation skipped by configuration: dryRun={}", resolved.dryRun);
+            appendProgress(progressLogFile, "AI 生成已按配置跳过。");
             return;
         }
         jobResult.getFiles().setAiDebug(aiDebugWriter.fileName());
@@ -240,6 +266,7 @@ public class PolarionModuleImportService {
                 resolved.projectId,
                 candidateCount,
                 resolved.dryRun);
+        appendProgress(progressLogFile, "开始 AI 生成字段：候选 Work Item 共 " + candidateCount + " 个。");
         if (candidateCount == 0) {
             markNonCandidatesAiSkipped(jobResult);
             jobResult.setStatus(JobStatus.AI_SKIPPED.name());
@@ -247,17 +274,21 @@ public class PolarionModuleImportService {
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, jobResult.getItems());
             LOGGER.info("AI generation skipped: no candidate items, jobId={}", jobResult.getJobId());
+            appendProgress(progressLogFile, "没有候选 Work Item，AI 生成阶段跳过。");
             return;
         }
 
+        int candidateIndex = 0;
         for (PolarionImportItemResult item : jobResult.getItems()) {
             if (!Boolean.TRUE.equals(item.getCandidate())) {
                 item.setAiStatus(AI_STATUS_SKIPPED);
                 continue;
             }
+            candidateIndex++;
             item.setAiStatus(AI_STATUS_CALLING);
             item.setAiErrorMessage(null);
             item.setAiDebugRef(buildAiDebugRef(item));
+            appendProgress(progressLogFile, "正在进行 AI 生成字段：" + formatItemProgress(candidateIndex, candidateCount, item) + "。");
             LOGGER.info("Generating AI fields: jobId={}, seq={}, outlineNo={}, itemKey={}",
                     jobResult.getJobId(),
                     item.getSeq(),
@@ -271,6 +302,7 @@ public class PolarionModuleImportService {
             applyAiResult(resolved, item, aiResult);
             aiDebugWriter.append(aiDebugFile, buildAiDebugRecord(jobResult, item, aiResult));
             item.setCustomFields(buildApiRequest(resolved, item).getCustomFields());
+            appendProgress(progressLogFile, formatAiProgressResult(candidateIndex, candidateCount, item));
 
             updateSummary(jobResult, jobResult.getSummary().getParagraphCount());
             resultWriter.writeAtomic(resultJsonFile, jobResult);
@@ -286,6 +318,7 @@ public class PolarionModuleImportService {
         resultWriter.writeAtomic(resultJsonFile, jobResult);
         csvWriter.write(previewCsvFile, jobResult.getItems());
         LOGGER.info("AI generation finished: jobId={}, candidateCount={}", jobResult.getJobId(), candidateCount);
+        appendProgress(progressLogFile, "AI 字段生成阶段完成。");
     }
 
     private void markNonCandidatesAiSkipped(PolarionImportJobResult jobResult) {
@@ -434,15 +467,21 @@ public class PolarionModuleImportService {
     private void createWorkItems(ResolvedRequest resolved,
                                  PolarionImportJobResult jobResult,
                                  Path resultJsonFile,
-                                 Path previewCsvFile) throws IOException {
+                                 Path previewCsvFile,
+                                 Path progressLogFile) throws IOException {
         jobResult.setStatus(JobStatus.CREATING_WORK_ITEMS.name());
         resultWriter.writeAtomic(resultJsonFile, jobResult);
+        int candidateCount = countCandidates(jobResult.getItems());
+        int candidateIndex = 0;
+        appendProgress(progressLogFile, "开始创建 Polarion Work Item：候选 Work Item 共 " + candidateCount + " 个。");
         for (PolarionImportItemResult item : jobResult.getItems()) {
             if (!Boolean.TRUE.equals(item.getCandidate())) {
                 continue;
             }
+            candidateIndex++;
             item.setCustomFields(buildApiRequest(resolved, item).getCustomFields());
             item.setStatus(ItemStatus.CREATING.name());
+            appendProgress(progressLogFile, "正在创建 Work Item：" + formatItemProgress(candidateIndex, candidateCount, item) + "。");
             WorkItemCreateResult createResult = createOneSafely(resolved, item);
             if (createResult != null
                     && Boolean.TRUE.equals(createResult.getSuccess())
@@ -450,14 +489,19 @@ public class PolarionModuleImportService {
                 item.setWorkItemId(createResult.getWorkItemId());
                 item.setStatus(ItemStatus.CREATED.name());
                 item.setErrorMessage(null);
+                appendProgress(progressLogFile, "Work Item 创建成功：" + formatItemProgress(candidateIndex, candidateCount, item)
+                        + "，workItemId=" + createResult.getWorkItemId() + "。");
             } else {
                 item.setStatus(ItemStatus.CREATE_FAILED.name());
                 item.setErrorMessage(formatCreateError(createResult));
+                appendProgress(progressLogFile, "Work Item 创建失败：" + formatItemProgress(candidateIndex, candidateCount, item)
+                        + "，原因=" + item.getErrorMessage() + "。");
             }
             updateSummary(jobResult, jobResult.getSummary().getParagraphCount());
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, jobResult.getItems());
         }
+        appendProgress(progressLogFile, "Work Item 创建阶段完成。");
     }
 
     private WorkItemCreateResult createOneSafely(ResolvedRequest resolved, PolarionImportItemResult item) {
@@ -566,6 +610,7 @@ public class PolarionModuleImportService {
         PolarionImportFiles files = new PolarionImportFiles();
         files.setOriginalXml(ORIGINAL_XML_FILE);
         files.setCsv(PREVIEW_CSV_FILE);
+        files.setProgressLog(PROGRESS_LOG_FILE);
         result.setFiles(files);
         return result;
     }
@@ -609,6 +654,7 @@ public class PolarionModuleImportService {
         response.setResultJsonFile(RESULT_JSON_FILE);
         response.setPreviewCsvFile(PREVIEW_CSV_FILE);
         response.setAiDebugFile(jobResult.getFiles().getAiDebug());
+        response.setProgressLogFile(jobResult.getFiles().getProgressLog());
         if (jobResult.getSvnCommitResult() != null) {
             response.setSvnCommitStatus(jobResult.getSvnCommitResult().getStatus());
             response.setSvnRevision(jobResult.getSvnCommitResult().getRevision());
@@ -738,6 +784,9 @@ public class PolarionModuleImportService {
                 ? moduleUrlParser.parse(safeRequest.getModuleUrl())
                 : null;
         ResolvedRequest resolved = new ResolvedRequest();
+        resolved.jobId = TextUtils.hasText(safeRequest.getJobId())
+                ? sanitizeJobId(safeRequest.getJobId())
+                : null;
         resolved.baseUrl = firstText(location == null ? safeRequest.getBaseUrl() : location.getBaseUrl(), polarionProperties.getBaseUrl());
         PolarionProperties.WorkItemApi api = polarionProperties.getWorkItemApi();
         resolved.projectId = firstText(
@@ -803,14 +852,55 @@ public class PolarionModuleImportService {
         return value == null ? null : String.valueOf(value);
     }
 
+    private void appendProgress(Path progressLogFile, String message) {
+        try {
+            progressLogWriter.append(progressLogFile, message);
+        } catch (IOException e) {
+            LOGGER.warn("Progress log write failed: file={}, message={}", progressLogFile, e.getMessage());
+        }
+    }
+
+    private String formatItemProgress(int index, int total, PolarionImportItemResult item) {
+        StringBuilder builder = new StringBuilder();
+        builder.append("[").append(index).append("/").append(total).append("]");
+        if (TextUtils.hasText(item.getOutlineNo())) {
+            builder.append(" 条款 ").append(item.getOutlineNo());
+        }
+        if (TextUtils.hasText(item.getItemKey())) {
+            builder.append("，itemKey=").append(item.getItemKey());
+        }
+        String title = firstText(item.getTitle(), item.getRuleTitle(), item.getDescription());
+        if (TextUtils.hasText(title)) {
+            builder.append("，标题=").append(TextUtils.truncateAtWordBoundary(title, 50));
+        }
+        return builder.toString();
+    }
+
+    private String formatAiProgressResult(int index, int total, PolarionImportItemResult item) {
+        String base = formatItemProgress(index, total, item);
+        if (AI_STATUS_SUCCESS.equals(item.getAiStatus())) {
+            return "AI 生成完成：" + base + "。";
+        }
+        return "AI 生成失败：" + base + "，原因=" + item.getAiErrorMessage() + "。";
+    }
+
     private String buildJobId(String moduleName) {
         return TextUtils.sanitizePathPart(moduleName) + "_" + JOB_TIME_FORMAT.format(LocalDateTime.now());
+    }
+
+    private String sanitizeJobId(String jobId) {
+        String sanitized = TextUtils.sanitizePathPart(jobId);
+        if (".".equals(sanitized) || "..".equals(sanitized)) {
+            return "job_" + JOB_TIME_FORMAT.format(LocalDateTime.now());
+        }
+        return sanitized;
     }
 
     /**
      * 解析后的请求参数，避免在主流程中重复处理默认值。
      */
     private static class ResolvedRequest {
+        private String jobId;
         private String baseUrl;
         private String projectId;
         private String moduleFolder;

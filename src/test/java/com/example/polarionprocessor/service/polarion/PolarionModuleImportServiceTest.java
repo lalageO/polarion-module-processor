@@ -304,6 +304,12 @@ class PolarionModuleImportServiceTest {
         assertTrue(Files.exists(jobDir.resolve("original_module.xml")));
         assertTrue(Files.exists(jobDir.resolve("import_result.json")));
         assertTrue(Files.exists(jobDir.resolve("import_preview.csv")));
+        assertEquals("progress.log", response.getProgressLogFile());
+        assertTrue(Files.exists(jobDir.resolve("progress.log")));
+        String progressLog = read(jobDir.resolve("progress.log"));
+        assertTrue(progressLog.contains("任务已启动"));
+        assertTrue(progressLog.contains("识别完成"));
+        assertTrue(progressLog.contains("试运行完成"));
         assertFalse(Files.exists(jobDir.resolve("processed_module.xml")));
         assertFalse(Files.exists(jobDir.resolve("module.xml")));
         assertEquals(null, response.getProcessedXmlFile());
@@ -499,7 +505,8 @@ class PolarionModuleImportServiceTest {
                 new PolarionImportResultWriter(new ObjectMapper()),
                 new PolarionImportPreviewCsvWriter(moduleProperties),
                 new NoopAiGenerationService(),
-                new AiDebugWriter(new AiProperties(), new ObjectMapper()));
+                new AiDebugWriter(new AiProperties(), new ObjectMapper()),
+                new PolarionProgressLogWriter());
     }
 
     private PolarionModuleImportRequest request(boolean dryRun) {
