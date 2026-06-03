@@ -47,7 +47,27 @@ public class PolarionModuleUrlParser {
         location.setModuleName(segments.get(segments.size() - 1));
         location.setModuleFolder(joinPathSegments(segments.subList(wikiIndex + 1, segments.size() - 1)));
         validate(location);
+        location.setModuleURI(buildModuleURI(location.getProjectId(), location.getModuleFolder(), location.getModuleName()));
         return location;
+    }
+
+    public String buildModuleURI(String projectId, String moduleFolder, String moduleName) {
+        if (!TextUtils.hasText(projectId) || !TextUtils.hasText(moduleFolder) || !TextUtils.hasText(moduleName)) {
+            return null;
+        }
+        return "subterra:data-service:objects:/default/"
+                + projectId.trim()
+                + "${Module}"
+                + "{moduleFolder}"
+                + directParentFolder(moduleFolder)
+                + "#"
+                + moduleName.trim();
+    }
+
+    private String directParentFolder(String moduleFolder) {
+        String trimmed = moduleFolder.trim();
+        int slashIndex = Math.max(trimmed.lastIndexOf('/'), trimmed.lastIndexOf('\\'));
+        return slashIndex < 0 ? trimmed : trimmed.substring(slashIndex + 1);
     }
 
     private URI parseUri(String moduleUrl) {

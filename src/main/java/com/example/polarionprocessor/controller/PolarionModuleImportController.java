@@ -123,6 +123,8 @@ public class PolarionModuleImportController {
             request.setModuleFolder(value);
         } else if ("modulename".equals(key)) {
             request.setModuleName(value);
+        } else if ("moduleuri".equals(key)) {
+            request.setModuleURI(value);
         } else if ("workitemtype".equals(key)) {
             request.setWorkItemType(value);
         } else if ("authorid".equals(key) || "anthorname".equals(key) || "username".equals(key) || "user".equals(key)) {
@@ -141,7 +143,8 @@ public class PolarionModuleImportController {
         return "moduleurl".equals(normalized)
                 || "url".equals(normalized)
                 || "documenturl".equals(normalized)
-                || "baseurl".equals(normalized);
+                || "baseurl".equals(normalized)
+                || "moduleuri".equals(normalized);
     }
 
     private String normalizeFormKey(String key) {
@@ -169,6 +172,9 @@ public class PolarionModuleImportController {
         request.setModuleFolder(location.getModuleFolder());
         request.setModuleName(location.getModuleName());
         request.setBaseUrl(location.getBaseUrl());
+        if (!TextUtils.hasText(request.getModuleURI())) {
+            request.setModuleURI(location.getModuleURI());
+        }
     }
 
     private String normalizeModuleUrl(String moduleUrl) {

@@ -41,6 +41,7 @@ public class WorkItemCreateApiRequestBuilder {
             "duedate",
             "startdate",
             "parentwkid",
+            "moduleuri",
             "isnewpdp",
             "onlycreate",
             "commentcontent",
@@ -77,6 +78,7 @@ public class WorkItemCreateApiRequestBuilder {
         apiRequest.setDueDate(safeRequest.getDueDate());
         apiRequest.setStartDate(safeRequest.getStartDate());
         apiRequest.setParentWkId(safeRequest.getParentWkId());
+        apiRequest.setModuleURI(safeRequest.getModuleURI());
         apiRequest.setIsNewPdp(safeRequest.getIsNewPdp() == null ? Boolean.FALSE : safeRequest.getIsNewPdp());
         apiRequest.setOnlyCreate(safeRequest.getOnlyCreate() == null ? Boolean.TRUE : safeRequest.getOnlyCreate());
         apiRequest.setCommentContent(safeRequest.getCommentContent());
@@ -325,6 +327,8 @@ public class WorkItemCreateApiRequestBuilder {
             apiRequest.setStartDate(stringValue(value));
         } else if ("parentwkid".equals(normalizedKey)) {
             apiRequest.setParentWkId(stringValue(value));
+        } else if ("moduleuri".equals(normalizedKey)) {
+            apiRequest.setModuleURI(stringValue(value));
         } else if ("isnewpdp".equals(normalizedKey)) {
             apiRequest.setIsNewPdp(toBoolean(value));
         } else if ("onlycreate".equals(normalizedKey)) {

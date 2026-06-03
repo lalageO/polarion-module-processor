@@ -42,6 +42,8 @@ class PolarionModuleImportControllerTest {
         verify(executor).submit(captor.capture());
         assertEquals(MODULE_URL, captor.getValue().getModuleUrl());
         assertEquals("custom.author", captor.getValue().getAuthorId());
+        assertEquals("subterra:data-service:objects:/default/FDP_Demo${Module}{moduleFolder}10 Stakeholder Requirement#R171e4",
+                captor.getValue().getModuleURI());
     }
 
     @Test
@@ -64,6 +66,25 @@ class PolarionModuleImportControllerTest {
         verify(executor).submit(captor.capture());
         assertEquals(MODULE_URL, captor.getValue().getModuleUrl());
         assertEquals("custom.author", captor.getValue().getAuthorId());
+        assertEquals("subterra:data-service:objects:/default/FDP_Demo${Module}{moduleFolder}10 Stakeholder Requirement#R171e4",
+                captor.getValue().getModuleURI());
+    }
+
+    @Test
+    void explicitModuleUriShouldOverrideParsedModuleUri() throws Exception {
+        PolarionModuleImportAsyncExecutor executor = mock(PolarionModuleImportAsyncExecutor.class);
+        MockMvc mockMvc = mockMvc(executor);
+        String explicitModuleURI = "subterra:data-service:objects:/default/Override${Module}{moduleFolder}Folder#Doc";
+
+        mockMvc.perform(post("/api/polarion/module/import")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content("{\"url\":\"" + MODULE_URL + "\",\"moduleURI\":\"" + explicitModuleURI + "\"}"))
+                .andExpect(status().isAccepted());
+
+        ArgumentCaptor<PolarionModuleImportRequest> captor =
+                ArgumentCaptor.forClass(PolarionModuleImportRequest.class);
+        verify(executor).submit(captor.capture());
+        assertEquals(explicitModuleURI, captor.getValue().getModuleURI());
     }
 
     private MockMvc mockMvc(PolarionModuleImportAsyncExecutor executor) {

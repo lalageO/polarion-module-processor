@@ -22,6 +22,7 @@ public class WorkItemCreateRequest {
     private String dueDate;
     private String startDate;
     private String parentWkId;
+    private String moduleURI;
     private Boolean isNewPdp;
     private Boolean onlyCreate;
     private String commentContent;
@@ -125,6 +126,14 @@ public class WorkItemCreateRequest {
 
     public void setParentWkId(String parentWkId) {
         this.parentWkId = parentWkId;
+    }
+
+    public String getModuleURI() {
+        return moduleURI;
+    }
+
+    public void setModuleURI(String moduleURI) {
+        this.moduleURI = moduleURI;
     }
 
     public Boolean getIsNewPdp() {

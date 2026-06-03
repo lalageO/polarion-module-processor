@@ -24,6 +24,9 @@ public class WorkItemCreateApiRequest {
     private String dueDate;
     private String startDate;
     private String parentWkId;
+    @JsonProperty("moduleURI")
+    @JsonAlias({"moduleUri", "moduleuri"})
+    private String moduleURI;
     private Boolean isNewPdp = Boolean.FALSE;
     private Boolean onlyCreate = Boolean.TRUE;
     private String commentContent;
@@ -121,6 +124,14 @@ public class WorkItemCreateApiRequest {
 
     public void setParentWkId(String parentWkId) {
         this.parentWkId = parentWkId;
+    }
+
+    public String getModuleURI() {
+        return moduleURI;
+    }
+
+    public void setModuleURI(String moduleURI) {
+        this.moduleURI = moduleURI;
     }
 
     public Boolean getIsNewPdp() {

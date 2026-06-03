@@ -28,6 +28,10 @@ public class PolarionModuleImportRequest {
     /** 模块名，例如 R171e2。 */
     private String moduleName;
 
+    /** 对齐远程 WorkItemWsDto.moduleURI，用于 Work Item 的 Open in Document 反向链接。 */
+    @JsonAlias({"moduleUri", "moduleuri"})
+    private String moduleURI;
+
     /** 要创建的 Work Item 类型。 */
     private String workItemType;
 
@@ -124,6 +128,14 @@ public class PolarionModuleImportRequest {
 
     public void setModuleName(String moduleName) {
         this.moduleName = moduleName;
+    }
+
+    public String getModuleURI() {
+        return moduleURI;
+    }
+
+    public void setModuleURI(String moduleURI) {
+        this.moduleURI = moduleURI;
     }
 
     public String getWorkItemType() {

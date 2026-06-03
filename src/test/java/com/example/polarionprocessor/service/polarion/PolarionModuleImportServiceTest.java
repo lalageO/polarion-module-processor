@@ -77,7 +77,23 @@ class PolarionModuleImportServiceTest {
         assertEquals("FDP_Demo", location.getProjectId());
         assertEquals("10 Stakeholder Requirement", location.getModuleFolder());
         assertEquals("R171e", location.getModuleName());
+        assertEquals("subterra:data-service:objects:/default/FDP_Demo${Module}{moduleFolder}10 Stakeholder Requirement#R171e",
+                location.getModuleURI());
         assertEquals("http://alm.freetech.com/repo/FDP_Demo/modules/10 Stakeholder Requirement/R171e/", url);
+
+        com.example.polarionprocessor.model.polarion.PolarionModuleLocation demoLocation = parser.parse(
+                "http://alm.freetech.com/polarion/#/project/RMT_Platfrom_Demo/wiki/TestFolder1/R171e_0602");
+        assertEquals("RMT_Platfrom_Demo", demoLocation.getProjectId());
+        assertEquals("TestFolder1", demoLocation.getModuleFolder());
+        assertEquals("R171e_0602", demoLocation.getModuleName());
+        assertEquals("subterra:data-service:objects:/default/RMT_Platfrom_Demo${Module}{moduleFolder}TestFolder1#R171e_0602",
+                demoLocation.getModuleURI());
+
+        com.example.polarionprocessor.model.polarion.PolarionModuleLocation nestedLocation = parser.parse(
+                "http://alm.freetech.com/polarion/#/project/RMT_Platfrom_Demo/wiki/10%20Stakeholder%20Requirement/TestFolder1/R171e_0602");
+        assertEquals("10 Stakeholder Requirement/TestFolder1", nestedLocation.getModuleFolder());
+        assertEquals("subterra:data-service:objects:/default/RMT_Platfrom_Demo${Module}{moduleFolder}TestFolder1#R171e_0602",
+                nestedLocation.getModuleURI());
     }
 
     @Test
@@ -115,6 +131,8 @@ class PolarionModuleImportServiceTest {
         assertEquals("2026-06-30", apiRequest.getDueDate());
         assertEquals(Boolean.FALSE, apiRequest.getIsNewPdp());
         assertEquals(Boolean.TRUE, apiRequest.getOnlyCreate());
+        assertEquals("subterra:data-service:objects:/default/FDP_Demo${Module}{moduleFolder}10 Stakeholder Requirement#R171e",
+                apiRequest.getModuleURI());
         assertEquals("【条款 11】原文：DCAS shall have means to evaluate continuous driver involvement.", apiRequest.getCdescription());
         assertEquals(3, apiRequest.getCustomFields().size());
         assertEquals("requirementsource", apiRequest.getCustomFields().get(0).getId());
@@ -231,6 +249,7 @@ class PolarionModuleImportServiceTest {
                 .andExpect(jsonPath("$.type").value("stakeholderrequirement"))
                 .andExpect(jsonPath("$.title").value("11 DCAS 应具备评估驾驶员持续参与能力"))
                 .andExpect(jsonPath("$.authorId").value("yiming.yuan"))
+                .andExpect(jsonPath("$.moduleURI").value("subterra:data-service:objects:/default/FDP_Demo${Module}{moduleFolder}10 Stakeholder Requirement#R171e"))
                 .andExpect(jsonPath("$.isNewPdp").value(false))
                 .andExpect(jsonPath("$.onlyCreate").value(true))
                 .andExpect(jsonPath("$.cdescription").value("【条款 11】原文：DCAS shall have means to evaluate continuous driver involvement."))
@@ -331,6 +350,8 @@ class PolarionModuleImportServiceTest {
         assertEquals(Integer.valueOf(2), response.getCreatedCount());
         assertEquals(Integer.valueOf(2), response.getReplacedCount());
         assertEquals(2, creator.getTitles().size());
+        assertEquals("subterra:data-service:objects:/default/FDP_Demo${Module}{moduleFolder}10 Stakeholder Requirement#R171e2",
+                creator.getModuleURIs().get(0));
         assertTrue(creator.getTitles().get(0).startsWith("5.1.1 First requirement"));
         assertTrue(creator.getTitles().get(1).startsWith("5.1.2 Second requirement"));
         String processedXml = read(tempDir.resolve(response.getJobId()).resolve("module.xml"));
@@ -442,6 +463,7 @@ class PolarionModuleImportServiceTest {
         request.setType("stakeholderrequirement");
         request.setTitle("11 DCAS 应具备评估驾驶员持续参与能力");
         request.setAuthorId("yiming.yuan");
+        request.setModuleURI("subterra:data-service:objects:/default/FDP_Demo${Module}{moduleFolder}10 Stakeholder Requirement#R171e");
         request.setDescription("【条款 11】原文：DCAS shall have means to evaluate continuous driver involvement.");
         return request;
     }
@@ -527,6 +549,7 @@ class PolarionModuleImportServiceTest {
         private final List<WorkItemCreateResult> results;
         private final java.util.ArrayList<String> titles = new java.util.ArrayList<String>();
         private final java.util.ArrayList<String> authorIds = new java.util.ArrayList<String>();
+        private final java.util.ArrayList<String> moduleURIs = new java.util.ArrayList<String>();
 
         RecordingCreator() {
             this.results = Collections.emptyList();
@@ -548,6 +571,7 @@ class PolarionModuleImportServiceTest {
         public WorkItemCreateResult createOne(WorkItemCreateRequest request) {
             titles.add(request.getTitle());
             authorIds.add(request.getAuthorId());
+            moduleURIs.add(request.getModuleURI());
             if (titles.size() <= results.size()) {
                 return results.get(titles.size() - 1);
             }
@@ -564,6 +588,10 @@ class PolarionModuleImportServiceTest {
 
         List<String> getAuthorIds() {
             return authorIds;
+        }
+
+        List<String> getModuleURIs() {
+            return moduleURIs;
         }
     }
 

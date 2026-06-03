@@ -418,6 +418,7 @@ public class PolarionModuleImportService {
         putIfNotNull(fields, "dueDate", resolved.dueDate);
         putIfNotNull(fields, "startDate", resolved.startDate);
         putIfNotNull(fields, "parentWkId", resolved.parentWkId);
+        putIfNotNull(fields, "moduleURI", resolved.moduleURI);
         putIfNotNull(fields, "isNewPdp", resolved.isNewPdp);
         putIfNotNull(fields, "onlyCreate", resolved.onlyCreate);
         putIfNotNull(fields, "commentContent", resolved.commentContent);
@@ -483,6 +484,7 @@ public class PolarionModuleImportService {
         request.setDueDate(resolved.dueDate);
         request.setStartDate(resolved.startDate);
         request.setParentWkId(resolved.parentWkId);
+        request.setModuleURI(resolved.moduleURI);
         request.setIsNewPdp(resolved.isNewPdp);
         request.setOnlyCreate(resolved.onlyCreate);
         request.setCommentContent(resolved.commentContent);
@@ -744,6 +746,10 @@ public class PolarionModuleImportService {
                 polarionProperties.getDefaultProjectId());
         resolved.moduleFolder = firstText(location == null ? safeRequest.getModuleFolder() : location.getModuleFolder(), polarionProperties.getDefaultModuleFolder());
         resolved.moduleName = firstText(location == null ? safeRequest.getModuleName() : location.getModuleName(), moduleProperties.getDefaultModuleName());
+        resolved.moduleURI = firstText(
+                safeRequest.getModuleURI(),
+                location == null ? null : location.getModuleURI(),
+                moduleUrlParser.buildModuleURI(resolved.projectId, resolved.moduleFolder, resolved.moduleName));
         resolved.workItemType = firstText(
                 safeRequest.getWorkItemType(),
                 api == null ? null : api.getDefaultType(),
@@ -809,6 +815,7 @@ public class PolarionModuleImportService {
         private String projectId;
         private String moduleFolder;
         private String moduleName;
+        private String moduleURI;
         private String workItemType;
         private String authorName;
         private String authorId;
