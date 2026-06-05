@@ -9,8 +9,9 @@ import com.example.polarionprocessor.config.ModuleProcessorProperties;
 import com.example.polarionprocessor.config.PolarionProperties;
 import com.example.polarionprocessor.enums.ItemStatus;
 import com.example.polarionprocessor.enums.JobStatus;
-import com.example.polarionprocessor.model.shared.ImportItemResult;
+import com.example.polarionprocessor.enums.PolarionItemRole;
 import com.example.polarionprocessor.model.debug.ModuleProcessRequest;
+import com.example.polarionprocessor.model.shared.ImportItemResult;
 import com.example.polarionprocessor.model.shared.ModuleXmlContent;
 import com.example.polarionprocessor.model.shared.ParagraphInfo;
 import com.example.polarionprocessor.model.polarion.PolarionImportFiles;
@@ -29,8 +30,6 @@ import com.example.polarionprocessor.model.polarion.WorkItemCreateResult;
 import com.example.polarionprocessor.service.shared.ModuleProcessException;
 import com.example.polarionprocessor.service.shared.ModuleXmlExtractor;
 import com.example.polarionprocessor.service.shared.ModuleXmlRewriter;
-import com.example.polarionprocessor.service.shared.NumberedItemGrouper;
-import com.example.polarionprocessor.service.shared.ParagraphCandidateSelector;
 import com.example.polarionprocessor.service.shared.ParagraphScanner;
 import com.example.polarionprocessor.service.shared.TitleGenerator;
 import com.example.polarionprocessor.util.FileUtils;
@@ -74,8 +73,7 @@ public class PolarionModuleImportService {
     private final ModuleXmlDownloader moduleXmlDownloader;
     private final ModuleXmlExtractor moduleXmlExtractor;
     private final ParagraphScanner paragraphScanner;
-    private final NumberedItemGrouper numberedItemGrouper;
-    private final ParagraphCandidateSelector candidateSelector;
+    private final PolarionDocumentItemBuilder documentItemBuilder;
     private final TitleGenerator titleGenerator;
     private final PolarionWorkItemCreator workItemCreator;
     private final WorkItemCreateApiRequestBuilder apiRequestBuilder;
@@ -95,8 +93,7 @@ public class PolarionModuleImportService {
                                        ModuleXmlDownloader moduleXmlDownloader,
                                        ModuleXmlExtractor moduleXmlExtractor,
                                        ParagraphScanner paragraphScanner,
-                                       NumberedItemGrouper numberedItemGrouper,
-                                       ParagraphCandidateSelector candidateSelector,
+                                       PolarionDocumentItemBuilder documentItemBuilder,
                                        TitleGenerator titleGenerator,
                                        PolarionWorkItemCreator workItemCreator,
                                        WorkItemCreateApiRequestBuilder apiRequestBuilder,
@@ -115,8 +112,7 @@ public class PolarionModuleImportService {
         this.moduleXmlDownloader = moduleXmlDownloader;
         this.moduleXmlExtractor = moduleXmlExtractor;
         this.paragraphScanner = paragraphScanner;
-        this.numberedItemGrouper = numberedItemGrouper;
-        this.candidateSelector = candidateSelector;
+        this.documentItemBuilder = documentItemBuilder;
         this.titleGenerator = titleGenerator;
         this.workItemCreator = workItemCreator;
         this.apiRequestBuilder = apiRequestBuilder;
@@ -156,7 +152,7 @@ public class PolarionModuleImportService {
             FileUtils.writeUtf8(originalFile, xmlContent);
             appendProgress(progressLogFile, "module.xml 下载完成，已保存原始文件。");
 
-            appendProgress(progressLogFile, "正在解析文档内容并识别候选 Work Item。");
+            appendProgress(progressLogFile, "正在解析文档内容并识别 heading/stakeholderrequirement。");
             ModuleXmlContent moduleXmlContent = moduleXmlExtractor.extract(xmlContent);
             List<ParagraphInfo> paragraphs = paragraphScanner.scan(moduleXmlContent.getHtmlContent());
             List<PolarionImportItemResult> items = buildItems(resolved, moduleXmlContent.getHtmlContent(), paragraphs);
@@ -165,8 +161,9 @@ public class PolarionModuleImportService {
             jobResult.setStatus(JobStatus.ITEMS_READY.name());
             updateSummary(jobResult, paragraphs.size());
             appendProgress(progressLogFile, "识别完成：共扫描段落 " + paragraphs.size()
-                    + " 个，候选 Work Item " + jobResult.getSummary().getCandidateCount()
-                    + " 个，跳过 " + jobResult.getSummary().getSkippedCount() + " 个。");
+                    + " 个，heading " + jobResult.getSummary().getHeadingCount()
+                    + " 个，stakeholderrequirement " + jobResult.getSummary().getRequirementCount()
+                    + " 个，忽略 " + jobResult.getSummary().getSkippedCount() + " 个。");
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, items);
 
@@ -199,7 +196,8 @@ public class PolarionModuleImportService {
             updateSummary(jobResult, paragraphs.size());
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, jobResult.getItems());
-            appendProgress(progressLogFile, "任务完成：创建 " + jobResult.getSummary().getCreatedCount()
+            appendProgress(progressLogFile, "任务完成：heading 创建 " + jobResult.getSummary().getHeadingCreatedCount()
+                    + " 个，stakeholderrequirement 创建 " + jobResult.getSummary().getRequirementCreatedCount()
                     + " 个，失败 " + jobResult.getSummary().getFailedCount() + " 个。");
             return notifyAndReturn(buildResponse(true, "Polarion module import completed", jobDir, jobResult));
         } catch (ModuleProcessException e) {
@@ -220,29 +218,16 @@ public class PolarionModuleImportService {
     private List<PolarionImportItemResult> buildItems(ResolvedRequest resolved,
                                                       String htmlContent,
                                                       List<ParagraphInfo> paragraphs) {
-        List<ImportItemResult> legacyItems = numberedItemGrouper.group(resolved.moduleName, htmlContent, paragraphs);
-        List<PolarionImportItemResult> items = new ArrayList<PolarionImportItemResult>();
+        List<PolarionImportItemResult> items = documentItemBuilder.build(resolved.moduleName, htmlContent, paragraphs);
         ModuleProcessRequest titleRequest = new ModuleProcessRequest();
-        int minOutlineDepth = moduleProperties.getDefaultMinOutlineDepth() == null
-                ? 2
-                : moduleProperties.getDefaultMinOutlineDepth();
-        int levelTwoMinTextLength = moduleProperties.getLevelTwoMinTextLength() == null
-                ? 80
-                : moduleProperties.getLevelTwoMinTextLength();
-
-        for (ImportItemResult legacyItem : legacyItems) {
-            candidateSelector.apply(legacyItem, minOutlineDepth, resolved.requireKeyword, levelTwoMinTextLength);
-            PolarionImportItemResult item = mapItem(resolved, legacyItem);
-            if (Boolean.TRUE.equals(legacyItem.getCandidate())) {
-                String ruleTitle = titleGenerator.generate(legacyItem, titleRequest);
+        for (PolarionImportItemResult item : items) {
+            if (isRequirement(item)) {
+                String ruleTitle = titleGenerator.generate(buildLegacyTitleItem(item), titleRequest);
                 item.setRuleTitle(ruleTitle);
                 item.setTitle(effectiveTitle(resolved, item));
-                item.setStatus(ItemStatus.READY.name());
-            } else {
-                item.setStatus(ItemStatus.SKIPPED.name());
             }
+            item.setWorkItemCreateFields(buildCreateFields(resolved, item));
             item.setCustomFields(buildApiRequest(resolved, item).getCustomFields());
-            items.add(item);
         }
         return items;
     }
@@ -263,35 +248,35 @@ public class PolarionModuleImportService {
         resultWriter.writeAtomic(resultJsonFile, jobResult);
         csvWriter.write(previewCsvFile, jobResult.getItems());
 
-        int candidateCount = countCandidates(jobResult.getItems());
-        LOGGER.info("AI generation started: jobId={}, projectId={}, candidateCount={}, dryRun={}",
+        int requirementCount = countRole(jobResult.getItems(), PolarionItemRole.REQUIREMENT);
+        LOGGER.info("AI generation started: jobId={}, projectId={}, requirementCount={}, dryRun={}",
                 jobResult.getJobId(),
                 resolved.projectId,
-                candidateCount,
+                requirementCount,
                 resolved.dryRun);
-        appendProgress(progressLogFile, "开始 AI 生成字段：候选 Work Item 共 " + candidateCount + " 个。");
-        if (candidateCount == 0) {
-            markNonCandidatesAiSkipped(jobResult);
+        appendProgress(progressLogFile, "开始 AI 生成字段：stakeholderrequirement 共 " + requirementCount + " 个；heading 不需要 AI。");
+        if (requirementCount == 0) {
+            markNonRequirementsAiSkipped(jobResult);
             jobResult.setStatus(JobStatus.AI_SKIPPED.name());
             aiDebugWriter.append(aiDebugFile, buildNoCandidateAiDebugRecord(jobResult));
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, jobResult.getItems());
-            LOGGER.info("AI generation skipped: no candidate items, jobId={}", jobResult.getJobId());
-            appendProgress(progressLogFile, "没有候选 Work Item，AI 生成阶段跳过。");
+            LOGGER.info("AI generation skipped: no requirement items, jobId={}", jobResult.getJobId());
+            appendProgress(progressLogFile, "没有 stakeholderrequirement，AI 生成阶段跳过。");
             return;
         }
 
-        int candidateIndex = 0;
+        int requirementIndex = 0;
         for (PolarionImportItemResult item : jobResult.getItems()) {
-            if (!Boolean.TRUE.equals(item.getCandidate())) {
+            if (!isRequirement(item)) {
                 item.setAiStatus(AI_STATUS_SKIPPED);
                 continue;
             }
-            candidateIndex++;
+            requirementIndex++;
             item.setAiStatus(AI_STATUS_CALLING);
             item.setAiErrorMessage(null);
             item.setAiDebugRef(buildAiDebugRef(item));
-            appendProgress(progressLogFile, "正在进行 AI 生成字段：" + formatItemProgress(candidateIndex, candidateCount, item) + "。");
+            appendProgress(progressLogFile, "正在进行 AI 生成字段：" + formatItemProgress(requirementIndex, requirementCount, item) + "。");
             LOGGER.info("Generating AI fields: jobId={}, seq={}, outlineNo={}, itemKey={}",
                     jobResult.getJobId(),
                     item.getSeq(),
@@ -305,7 +290,7 @@ public class PolarionModuleImportService {
             applyAiResult(resolved, item, aiResult);
             aiDebugWriter.append(aiDebugFile, buildAiDebugRecord(jobResult, item, aiResult));
             item.setCustomFields(buildApiRequest(resolved, item).getCustomFields());
-            appendProgress(progressLogFile, formatAiProgressResult(candidateIndex, candidateCount, item));
+            appendProgress(progressLogFile, formatAiProgressResult(requirementIndex, requirementCount, item));
 
             updateSummary(jobResult, jobResult.getSummary().getParagraphCount());
             resultWriter.writeAtomic(resultJsonFile, jobResult);
@@ -320,13 +305,13 @@ public class PolarionModuleImportService {
         jobResult.setStatus(JobStatus.AI_COMPLETED.name());
         resultWriter.writeAtomic(resultJsonFile, jobResult);
         csvWriter.write(previewCsvFile, jobResult.getItems());
-        LOGGER.info("AI generation finished: jobId={}, candidateCount={}", jobResult.getJobId(), candidateCount);
+        LOGGER.info("AI generation finished: jobId={}, requirementCount={}", jobResult.getJobId(), requirementCount);
         appendProgress(progressLogFile, "AI 字段生成阶段完成。");
     }
 
-    private void markNonCandidatesAiSkipped(PolarionImportJobResult jobResult) {
+    private void markNonRequirementsAiSkipped(PolarionImportJobResult jobResult) {
         for (PolarionImportItemResult item : jobResult.getItems()) {
-            if (!Boolean.TRUE.equals(item.getCandidate())) {
+            if (!isRequirement(item)) {
                 item.setAiStatus(AI_STATUS_SKIPPED);
             }
         }
@@ -414,7 +399,7 @@ public class PolarionModuleImportService {
         record.setProjectId(jobResult.getProjectId());
         record.setModuleName(jobResult.getModuleName());
         record.setSuccess(Boolean.TRUE);
-        record.setErrorMessage("No candidate items; AI was not called");
+        record.setErrorMessage("No requirement items; AI was not called");
         return record;
     }
 
@@ -426,25 +411,25 @@ public class PolarionModuleImportService {
         return String.format("ai-%06d", seq);
     }
 
-    private PolarionImportItemResult mapItem(ResolvedRequest resolved, ImportItemResult legacyItem) {
-        PolarionImportItemResult item = new PolarionImportItemResult();
-        item.setSeq(legacyItem.getSeq());
-        item.setItemKey(legacyItem.getParagraphId());
-        item.setStartParagraphId(legacyItem.getStartParagraphId());
-        item.setEndParagraphId(legacyItem.getEndParagraphId());
-        item.setOutlineNo(legacyItem.getOutlineNo());
-        item.setDescription(legacyItem.getDescription());
-        item.setCandidate(legacyItem.getCandidate());
-        item.setSkipReason(legacyItem.getSkipReason());
-        item.setSourceStartIndex(legacyItem.getSourceStartIndex());
-        item.setSourceEndIndex(legacyItem.getSourceEndIndex());
-        item.setWorkItemCreateFields(buildCreateFields(resolved));
-        return item;
+    private ImportItemResult buildLegacyTitleItem(PolarionImportItemResult item) {
+        ImportItemResult legacyItem = new ImportItemResult();
+        legacyItem.setSeq(item.getSeq());
+        legacyItem.setParagraphId(item.getStartParagraphId());
+        legacyItem.setStartParagraphId(item.getStartParagraphId());
+        legacyItem.setEndParagraphId(item.getEndParagraphId());
+        legacyItem.setOutlineNo(item.getOutlineNo());
+        legacyItem.setSourceText(item.getDescription());
+        legacyItem.setDescription(item.getDescription());
+        legacyItem.setCandidate(item.getCandidate());
+        legacyItem.setSkipReason(item.getSkipReason());
+        legacyItem.setSourceStartIndex(item.getSourceStartIndex());
+        legacyItem.setSourceEndIndex(item.getSourceEndIndex());
+        return legacyItem;
     }
 
-    private Map<String, Object> buildCreateFields(ResolvedRequest resolved) {
+    private Map<String, Object> buildCreateFields(ResolvedRequest resolved, PolarionImportItemResult item) {
         Map<String, Object> fields = new LinkedHashMap<String, Object>();
-        fields.put("type", resolved.workItemType);
+        fields.put("type", item == null ? resolved.workItemType : firstText(item.getWorkItemType(), resolved.workItemType));
         fields.put("polarionId", resolved.projectId);
         fields.put("authorId", resolved.authorId);
         putIfNotNull(fields, "authorName", resolved.authorName);
@@ -453,7 +438,7 @@ public class PolarionModuleImportService {
         putIfNotNull(fields, "assigneeIds", resolved.assigneeIds);
         putIfNotNull(fields, "dueDate", resolved.dueDate);
         putIfNotNull(fields, "startDate", resolved.startDate);
-        putIfNotNull(fields, "parentWkId", resolved.parentWkId);
+        putIfNotNull(fields, "parentWkId", item == null ? resolved.parentWkId : firstText(item.getParentWkId(), topLevelParentWkId(resolved, item)));
         putIfNotNull(fields, "moduleURI", resolved.moduleURI);
         putIfNotNull(fields, "isNewPdp", resolved.isNewPdp);
         putIfNotNull(fields, "onlyCreate", resolved.onlyCreate);
@@ -461,7 +446,7 @@ public class PolarionModuleImportService {
         putIfNotNull(fields, "removedLink", resolved.removedLink);
         putIfNotNull(fields, "initialEstimate", resolved.initialEstimate);
         putIfNotNull(fields, "timeSpent", resolved.timeSpent);
-        if (resolved.defaultFields != null) {
+        if (!isHeading(item) && resolved.defaultFields != null) {
             fields.putAll(resolved.defaultFields);
         }
         return fields;
@@ -474,37 +459,100 @@ public class PolarionModuleImportService {
                                  Path progressLogFile) throws IOException {
         jobResult.setStatus(JobStatus.CREATING_WORK_ITEMS.name());
         resultWriter.writeAtomic(resultJsonFile, jobResult);
-        int candidateCount = countCandidates(jobResult.getItems());
-        int candidateIndex = 0;
-        appendProgress(progressLogFile, "开始创建 Polarion Work Item：候选 Work Item 共 " + candidateCount + " 个。");
+        createHeadingWorkItems(resolved, jobResult, resultJsonFile, previewCsvFile, progressLogFile);
+        createRequirementWorkItems(resolved, jobResult, resultJsonFile, previewCsvFile, progressLogFile);
+        appendProgress(progressLogFile, "Work Item 创建阶段完成。");
+    }
+
+    private void createHeadingWorkItems(ResolvedRequest resolved,
+                                        PolarionImportJobResult jobResult,
+                                        Path resultJsonFile,
+                                        Path previewCsvFile,
+                                        Path progressLogFile) throws IOException {
+        int headingCount = countRole(jobResult.getItems(), PolarionItemRole.HEADING);
+        int headingIndex = 0;
+        appendProgress(progressLogFile, "开始创建 heading：共 " + headingCount + " 个。");
         for (PolarionImportItemResult item : jobResult.getItems()) {
-            if (!Boolean.TRUE.equals(item.getCandidate())) {
+            if (!isHeading(item)) {
                 continue;
             }
-            candidateIndex++;
-            item.setCustomFields(buildApiRequest(resolved, item).getCustomFields());
-            item.setStatus(ItemStatus.CREATING.name());
-            appendProgress(progressLogFile, "正在创建 Work Item：" + formatItemProgress(candidateIndex, candidateCount, item) + "。");
-            WorkItemCreateResult createResult = createOneSafely(resolved, item);
-            if (createResult != null
-                    && Boolean.TRUE.equals(createResult.getSuccess())
-                    && TextUtils.hasText(createResult.getWorkItemId())) {
-                item.setWorkItemId(createResult.getWorkItemId());
-                item.setStatus(ItemStatus.CREATED.name());
-                item.setErrorMessage(null);
-                appendProgress(progressLogFile, "Work Item 创建成功：" + formatItemProgress(candidateIndex, candidateCount, item)
-                        + "，workItemId=" + createResult.getWorkItemId() + "。");
-            } else {
-                item.setStatus(ItemStatus.CREATE_FAILED.name());
-                item.setErrorMessage(formatCreateError(createResult));
-                appendProgress(progressLogFile, "Work Item 创建失败：" + formatItemProgress(candidateIndex, candidateCount, item)
+            headingIndex++;
+            if (!resolveParentWkIdForCreate(jobResult, item)) {
+                markCreateBlocked(item, "PARENT_HEADING_CREATE_FAILED", "Parent heading is not available: " + item.getParentOutlineNo());
+                appendProgress(progressLogFile, "heading 创建阻断：" + formatItemProgress(headingIndex, headingCount, item)
                         + "，原因=" + item.getErrorMessage() + "。");
+            } else {
+                createOneAndRecord(resolved, jobResult, item, headingIndex, headingCount, "heading", progressLogFile);
             }
             updateSummary(jobResult, jobResult.getSummary().getParagraphCount());
             resultWriter.writeAtomic(resultJsonFile, jobResult);
             csvWriter.write(previewCsvFile, jobResult.getItems());
         }
-        appendProgress(progressLogFile, "Work Item 创建阶段完成。");
+        updateSummary(jobResult, jobResult.getSummary().getParagraphCount());
+        appendProgress(progressLogFile, "heading 创建阶段完成：成功 "
+                + jobResult.getSummary().getHeadingCreatedCount()
+                + " 个，失败 " + countFailedRole(jobResult.getItems(), PolarionItemRole.HEADING) + " 个。");
+    }
+
+    private void createRequirementWorkItems(ResolvedRequest resolved,
+                                            PolarionImportJobResult jobResult,
+                                            Path resultJsonFile,
+                                            Path previewCsvFile,
+                                            Path progressLogFile) throws IOException {
+        int requirementCount = countRole(jobResult.getItems(), PolarionItemRole.REQUIREMENT);
+        int requirementIndex = 0;
+        appendProgress(progressLogFile, "开始创建 stakeholderrequirement：共 " + requirementCount + " 个。");
+        for (PolarionImportItemResult item : jobResult.getItems()) {
+            if (!isRequirement(item)) {
+                continue;
+            }
+            requirementIndex++;
+            if (!resolveParentWkIdForCreate(jobResult, item)) {
+                markCreateBlocked(item, "PARENT_HEADING_CREATE_FAILED", "Parent heading is not available: " + item.getParentOutlineNo());
+                appendProgress(progressLogFile, "stakeholderrequirement 创建阻断：" + formatItemProgress(requirementIndex, requirementCount, item)
+                        + "，原因=" + item.getErrorMessage() + "。");
+            } else {
+                if (!TextUtils.hasText(item.getParentWkId()) && !TextUtils.hasText(item.getParentOutlineNo())) {
+                    item.setParentWkId(topLevelParentWkId(resolved, item));
+                }
+                createOneAndRecord(resolved, jobResult, item, requirementIndex, requirementCount, "stakeholderrequirement", progressLogFile);
+            }
+            updateSummary(jobResult, jobResult.getSummary().getParagraphCount());
+            resultWriter.writeAtomic(resultJsonFile, jobResult);
+            csvWriter.write(previewCsvFile, jobResult.getItems());
+        }
+        updateSummary(jobResult, jobResult.getSummary().getParagraphCount());
+        appendProgress(progressLogFile, "stakeholderrequirement 创建阶段完成：成功 "
+                + jobResult.getSummary().getRequirementCreatedCount()
+                + " 个，失败 " + countFailedRole(jobResult.getItems(), PolarionItemRole.REQUIREMENT) + " 个。");
+    }
+
+    private void createOneAndRecord(ResolvedRequest resolved,
+                                    PolarionImportJobResult jobResult,
+                                    PolarionImportItemResult item,
+                                    int index,
+                                    int total,
+                                    String roleName,
+                                    Path progressLogFile) {
+        item.setWorkItemCreateFields(buildCreateFields(resolved, item));
+        item.setCustomFields(buildApiRequest(resolved, item).getCustomFields());
+        item.setStatus(ItemStatus.CREATING.name());
+        appendProgress(progressLogFile, "正在创建 " + roleName + "：" + formatItemProgress(index, total, item) + "。");
+        WorkItemCreateResult createResult = createOneSafely(resolved, item);
+        if (createResult != null
+                && Boolean.TRUE.equals(createResult.getSuccess())
+                && TextUtils.hasText(createResult.getWorkItemId())) {
+            item.setWorkItemId(createResult.getWorkItemId());
+            item.setStatus(ItemStatus.CREATED.name());
+            item.setErrorMessage(null);
+            appendProgress(progressLogFile, roleName + " 创建成功：" + formatItemProgress(index, total, item)
+                    + "，workItemId=" + createResult.getWorkItemId() + "。");
+        } else {
+            item.setStatus(ItemStatus.CREATE_FAILED.name());
+            item.setErrorMessage(formatCreateError(createResult));
+            appendProgress(progressLogFile, roleName + " 创建失败：" + formatItemProgress(index, total, item)
+                    + "，原因=" + item.getErrorMessage() + "。");
+        }
     }
 
     private WorkItemCreateResult createOneSafely(ResolvedRequest resolved, PolarionImportItemResult item) {
@@ -520,9 +568,9 @@ public class PolarionModuleImportService {
     private WorkItemCreateRequest buildCreateRequest(ResolvedRequest resolved, PolarionImportItemResult item) {
         WorkItemCreateRequest request = new WorkItemCreateRequest();
         request.setProjectId(resolved.projectId);
-        request.setType(resolved.workItemType);
+        request.setType(item == null ? resolved.workItemType : firstText(item.getWorkItemType(), resolved.workItemType));
         request.setTitle(effectiveTitle(resolved, item));
-        request.setDescription(item.getDescription());
+        request.setDescription(item == null || isHeading(item) ? null : item.getDescription());
         request.setAuthorName(resolved.authorName);
         request.setAuthorId(resolved.authorId);
         request.setStatus(resolved.status);
@@ -530,7 +578,7 @@ public class PolarionModuleImportService {
         request.setAssigneeIds(resolved.assigneeIds);
         request.setDueDate(resolved.dueDate);
         request.setStartDate(resolved.startDate);
-        request.setParentWkId(resolved.parentWkId);
+        request.setParentWkId(item == null ? resolved.parentWkId : firstText(item.getParentWkId(), topLevelParentWkId(resolved, item)));
         request.setModuleURI(resolved.moduleURI);
         request.setIsNewPdp(resolved.isNewPdp);
         request.setOnlyCreate(resolved.onlyCreate);
@@ -539,12 +587,15 @@ public class PolarionModuleImportService {
         request.setInitialEstimate(resolved.initialEstimate);
         request.setTimeSpent(resolved.timeSpent);
         request.setFields(buildRequestFields(resolved, item));
-        request.setCustomFields(resolved.customFields);
+        request.setCustomFields(isHeading(item) ? new ArrayList<PolarionCustomFieldRequest>() : resolved.customFields);
         return request;
     }
 
     private Map<String, Object> buildRequestFields(ResolvedRequest resolved, PolarionImportItemResult item) {
         Map<String, Object> fields = new LinkedHashMap<String, Object>();
+        if (isHeading(item)) {
+            return fields;
+        }
         if (item != null && item.getAiFields() != null) {
             fields.putAll(item.getAiFields());
         }
@@ -623,10 +674,17 @@ public class PolarionModuleImportService {
         summary.setParagraphCount(paragraphCount == null ? 0 : paragraphCount);
         summary.setItemCount(result.getItems().size());
         summary.setCandidateCount(countCandidates(result.getItems()));
+        summary.setHeadingCount(countRole(result.getItems(), PolarionItemRole.HEADING));
+        summary.setRequirementCount(countRole(result.getItems(), PolarionItemRole.REQUIREMENT));
+        summary.setIgnoredCount(countRole(result.getItems(), PolarionItemRole.IGNORED));
         summary.setCreatedCount(countCreated(result.getItems()));
+        summary.setHeadingCreatedCount(countCreatedRole(result.getItems(), PolarionItemRole.HEADING));
+        summary.setRequirementCreatedCount(countCreatedRole(result.getItems(), PolarionItemRole.REQUIREMENT));
         summary.setReplacedCount(countStatus(result.getItems(), ItemStatus.REPLACED));
         summary.setSkippedCount(countStatus(result.getItems(), ItemStatus.SKIPPED));
+        summary.setCreateBlockedCount(countStatus(result.getItems(), ItemStatus.CREATE_BLOCKED));
         summary.setFailedCount(countStatus(result.getItems(), ItemStatus.CREATE_FAILED)
+                + countStatus(result.getItems(), ItemStatus.CREATE_BLOCKED)
                 + countStatus(result.getItems(), ItemStatus.REPLACE_FAILED)
                 + countStatus(result.getItems(), ItemStatus.FAILED));
         result.setSummary(summary);
@@ -647,9 +705,15 @@ public class PolarionModuleImportService {
         response.setParagraphCount(jobResult.getSummary().getParagraphCount());
         response.setItemCount(jobResult.getSummary().getItemCount());
         response.setCandidateCount(jobResult.getSummary().getCandidateCount());
+        response.setHeadingCount(jobResult.getSummary().getHeadingCount());
+        response.setRequirementCount(jobResult.getSummary().getRequirementCount());
+        response.setIgnoredCount(jobResult.getSummary().getIgnoredCount());
         response.setCreatedCount(jobResult.getSummary().getCreatedCount());
+        response.setHeadingCreatedCount(jobResult.getSummary().getHeadingCreatedCount());
+        response.setRequirementCreatedCount(jobResult.getSummary().getRequirementCreatedCount());
         response.setReplacedCount(jobResult.getSummary().getReplacedCount());
         response.setSkippedCount(jobResult.getSummary().getSkippedCount());
+        response.setCreateBlockedCount(jobResult.getSummary().getCreateBlockedCount());
         response.setFailedCount(jobResult.getSummary().getFailedCount());
         response.setOutputDir(jobDir.toString().replace('\\', '/'));
         response.setOriginalXmlFile(ORIGINAL_XML_FILE);
@@ -683,6 +747,7 @@ public class PolarionModuleImportService {
     private boolean hasErrors(List<PolarionImportItemResult> items) {
         for (PolarionImportItemResult item : items) {
             if (ItemStatus.CREATE_FAILED.name().equals(item.getStatus())
+                    || ItemStatus.CREATE_BLOCKED.name().equals(item.getStatus())
                     || ItemStatus.REPLACE_FAILED.name().equals(item.getStatus())
                     || ItemStatus.FAILED.name().equals(item.getStatus())) {
                 return true;
@@ -691,7 +756,65 @@ public class PolarionModuleImportService {
         return false;
     }
 
+    private boolean isHeading(PolarionImportItemResult item) {
+        return item != null && PolarionItemRole.HEADING.name().equals(item.getItemRole());
+    }
+
+    private boolean isRequirement(PolarionImportItemResult item) {
+        return item != null && PolarionItemRole.REQUIREMENT.name().equals(item.getItemRole());
+    }
+
+    private boolean resolveParentWkIdForCreate(PolarionImportJobResult jobResult, PolarionImportItemResult item) {
+        if (item == null || !TextUtils.hasText(item.getParentOutlineNo())) {
+            return true;
+        }
+        PolarionImportItemResult parent = findItemByOutline(jobResult.getItems(), item.getParentOutlineNo());
+        if (parent == null || !TextUtils.hasText(parent.getWorkItemId())) {
+            return false;
+        }
+        item.setParentWkId(parent.getWorkItemId());
+        return true;
+    }
+
+    private PolarionImportItemResult findItemByOutline(List<PolarionImportItemResult> items, String outlineNo) {
+        if (items == null || !TextUtils.hasText(outlineNo)) {
+            return null;
+        }
+        String normalized = normalizeOutline(outlineNo);
+        for (PolarionImportItemResult item : items) {
+            if (item != null && normalized.equals(normalizeOutline(item.getOutlineNo()))) {
+                return item;
+            }
+        }
+        return null;
+    }
+
+    private void markCreateBlocked(PolarionImportItemResult item, String errorCode, String errorMessage) {
+        item.setStatus(ItemStatus.CREATE_BLOCKED.name());
+        item.setErrorMessage(errorCode + ": " + errorMessage);
+    }
+
+    private String topLevelParentWkId(ResolvedRequest resolved, PolarionImportItemResult item) {
+        if (resolved == null || item == null || isHeading(item) || TextUtils.hasText(item.getParentOutlineNo())) {
+            return null;
+        }
+        return resolved.parentWkId;
+    }
+
+    private String normalizeOutline(String outlineNo) {
+        String normalized = outlineNo == null ? "" : outlineNo.trim();
+        while (normalized.endsWith(".")) {
+            normalized = normalized.substring(0, normalized.length() - 1);
+        }
+        return normalized;
+    }
+
     private String effectiveTitle(ResolvedRequest resolved, PolarionImportItemResult item) {
+        if (isHeading(item)) {
+            return firstText(
+                    item == null ? null : item.getRuleTitle(),
+                    item == null ? null : item.getTitle());
+        }
         return firstText(
                 resolved == null || resolved.defaultFields == null ? null : stringValue(resolved.defaultFields.get("title")),
                 item == null ? null : item.getAiTitle(),
@@ -766,10 +889,44 @@ public class PolarionModuleImportService {
         return count;
     }
 
+    private int countRole(List<PolarionImportItemResult> items, PolarionItemRole role) {
+        int count = 0;
+        for (PolarionImportItemResult item : items) {
+            if (item != null && role.name().equals(item.getItemRole())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
     private int countCreated(List<PolarionImportItemResult> items) {
         int count = 0;
         for (PolarionImportItemResult item : items) {
             if (TextUtils.hasText(item.getWorkItemId())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private int countCreatedRole(List<PolarionImportItemResult> items, PolarionItemRole role) {
+        int count = 0;
+        for (PolarionImportItemResult item : items) {
+            if (item != null && role.name().equals(item.getItemRole()) && TextUtils.hasText(item.getWorkItemId())) {
+                count++;
+            }
+        }
+        return count;
+    }
+
+    private int countFailedRole(List<PolarionImportItemResult> items, PolarionItemRole role) {
+        int count = 0;
+        for (PolarionImportItemResult item : items) {
+            if (item != null && role.name().equals(item.getItemRole())
+                    && (ItemStatus.CREATE_FAILED.name().equals(item.getStatus())
+                    || ItemStatus.CREATE_BLOCKED.name().equals(item.getStatus())
+                    || ItemStatus.REPLACE_FAILED.name().equals(item.getStatus())
+                    || ItemStatus.FAILED.name().equals(item.getStatus()))) {
                 count++;
             }
         }
@@ -871,8 +1028,17 @@ public class PolarionModuleImportService {
     private String formatItemProgress(int index, int total, PolarionImportItemResult item) {
         StringBuilder builder = new StringBuilder();
         builder.append("[").append(index).append("/").append(total).append("]");
+        if (TextUtils.hasText(item.getItemRole())) {
+            builder.append(" ").append(item.getItemRole());
+        }
         if (TextUtils.hasText(item.getOutlineNo())) {
             builder.append(" 条款 ").append(item.getOutlineNo());
+        }
+        if (TextUtils.hasText(item.getParentOutlineNo())) {
+            builder.append("，parentOutlineNo=").append(item.getParentOutlineNo());
+        }
+        if (TextUtils.hasText(item.getParentWkId())) {
+            builder.append("，parentWkId=").append(item.getParentWkId());
         }
         if (TextUtils.hasText(item.getItemKey())) {
             builder.append("，itemKey=").append(item.getItemKey());

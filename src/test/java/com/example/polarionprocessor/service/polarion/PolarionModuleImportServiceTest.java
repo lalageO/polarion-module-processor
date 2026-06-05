@@ -19,8 +19,6 @@ import com.example.polarionprocessor.model.polarion.WorkItemCreateRequest;
 import com.example.polarionprocessor.model.polarion.WorkItemCreateResult;
 import com.example.polarionprocessor.service.shared.ModuleXmlExtractor;
 import com.example.polarionprocessor.service.shared.ModuleXmlRewriter;
-import com.example.polarionprocessor.service.shared.NumberedItemGrouper;
-import com.example.polarionprocessor.service.shared.ParagraphCandidateSelector;
 import com.example.polarionprocessor.service.shared.ParagraphScanner;
 import com.example.polarionprocessor.service.shared.RuleBasedTitleGenerator;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -386,6 +384,8 @@ class PolarionModuleImportServiceTest {
         assertEquals(Integer.valueOf(2), response.getCreatedCount());
         assertEquals(Integer.valueOf(2), response.getReplacedCount());
         assertEquals(2, creator.getTitles().size());
+        assertEquals("stakeholderrequirement", creator.getTypes().get(0));
+        assertEquals("stakeholderrequirement", creator.getTypes().get(1));
         assertEquals("subterra:data-service:objects:/default/FDP_Demo${Module}{moduleFolder}10 Stakeholder Requirement#R171e2",
                 creator.getModuleURIs().get(0));
         assertTrue(creator.getTitles().get(0).startsWith("5.1.1 First requirement"));
@@ -393,6 +393,57 @@ class PolarionModuleImportServiceTest {
         String processedXml = read(tempDir.resolve(response.getJobId()).resolve("module.xml"));
         assertTrue(processedXml.contains("params=id=FDP-7016"));
         assertTrue(processedXml.contains("params=id=FDP-7017"));
+    }
+
+    @Test
+    void polarionImportCreatesHeadingBeforeRequirementsAndPassesParentWkId() throws Exception {
+        RecordingCreator creator = new RecordingCreator("FDP-H001", "FDP-R001", "FDP-R002");
+        PolarionModuleImportService service = buildService(creator, new StaticDownloader(headingSampleXml()), new ModuleXmlRewriter());
+
+        PolarionModuleImportResponse response = service.importModule(request(false));
+
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals(Integer.valueOf(1), response.getHeadingCount());
+        assertEquals(Integer.valueOf(2), response.getRequirementCount());
+        assertEquals(Integer.valueOf(3), response.getCreatedCount());
+        assertEquals(Integer.valueOf(3), response.getReplacedCount());
+        assertEquals(Arrays.asList("heading", "stakeholderrequirement", "stakeholderrequirement"), creator.getTypes());
+        assertNull(creator.getParentWkIds().get(0));
+        assertEquals("FDP-H001", creator.getParentWkIds().get(1));
+        assertEquals("FDP-H001", creator.getParentWkIds().get(2));
+        assertEquals("3. Measurement points for rear-registration plate illuminating lamps (see paragraph 5.11.3.)",
+                creator.getTitles().get(0));
+        assertTrue(creator.getTitles().get(1).startsWith("3.1 Category 1a"));
+
+        Path jobDir = tempDir.resolve(response.getJobId());
+        String resultJson = read(jobDir.resolve("import_result.json"));
+        String previewCsv = read(jobDir.resolve("import_preview.csv"));
+        String processedXml = read(jobDir.resolve("module.xml"));
+        assertTrue(resultJson.contains("\"itemRole\" : \"HEADING\""));
+        assertTrue(resultJson.contains("\"workItemType\" : \"heading\""));
+        assertTrue(resultJson.contains("\"parentWkId\" : \"FDP-H001\""));
+        assertTrue(previewCsv.contains("itemRole,workItemType"));
+        assertTrue(processedXml.contains("params=id=FDP-H001"));
+        assertTrue(processedXml.contains("params=id=FDP-R001"));
+        assertTrue(processedXml.contains("params=id=FDP-R002"));
+    }
+
+    @Test
+    void topLevelLongParagraphAndBareShortOutlineBecomeRequirements() throws Exception {
+        RecordingCreator creator = new RecordingCreator("FDP-R001", "FDP-R002");
+        PolarionModuleImportService service = buildService(creator, new StaticDownloader(topLevelRequirementSampleXml()), new ModuleXmlRewriter());
+
+        PolarionModuleImportResponse response = service.importModule(request(false));
+
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals(Integer.valueOf(0), response.getHeadingCount());
+        assertEquals(Integer.valueOf(2), response.getRequirementCount());
+        assertEquals(Arrays.asList("stakeholderrequirement", "stakeholderrequirement"), creator.getTypes());
+        assertNull(creator.getParentWkIds().get(0));
+        assertNull(creator.getParentWkIds().get(1));
+        String resultJson = read(tempDir.resolve(response.getJobId()).resolve("import_result.json"));
+        assertTrue(resultJson.contains("\"decisionReason\" : \"NO_CHILD_OUTLINE\""));
+        assertFalse(resultJson.contains("\"workItemType\" : \"heading\""));
     }
 
     @Test
@@ -524,8 +575,7 @@ class PolarionModuleImportServiceTest {
                 downloader,
                 new ModuleXmlExtractor(),
                 new ParagraphScanner(),
-                new NumberedItemGrouper(),
-                new ParagraphCandidateSelector(),
+                new PolarionDocumentItemBuilder(),
                 new RuleBasedTitleGenerator(moduleProperties),
                 creator,
                 new WorkItemCreateApiRequestBuilder(polarionProperties),
@@ -561,6 +611,29 @@ class PolarionModuleImportServiceTest {
                 + "</module>";
     }
 
+    private String headingSampleXml() {
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                + "<module>\n"
+                + "  <field id=\"title\">R171e2</field>\n"
+                + "  <field id=\"homePageContent\" text-type=\"text/html\"><![CDATA[\n"
+                + "    <p id=\"polarion_201\">3. Measurement points for rear-registration plate illuminating lamps (see paragraph 5.11.3.)</p>\n"
+                + "    <p id=\"polarion_202\">3.1. Category 1a - tall plate (340 x 240 mm)</p>\n"
+                + "    <p id=\"polarion_203\">3.2. Standard light distribution.</p>\n"
+                + "  ]]></field>\n"
+                + "</module>";
+    }
+
+    private String topLevelRequirementSampleXml() {
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                + "<module>\n"
+                + "  <field id=\"title\">R171e2</field>\n"
+                + "  <field id=\"homePageContent\" text-type=\"text/html\"><![CDATA[\n"
+                + "    <p id=\"polarion_301\">1. Advanced Driver Assistance Systems have been developed to support drivers and enhance road safety through information support, including warnings in safety-critical situations and assisting in executing the lateral and longitudinal control of the vehicle temporarily or on a sustained basis during normal driving.</p>\n"
+                + "    <p id=\"polarion_302\">2. Standard light distribution.</p>\n"
+                + "  ]]></field>\n"
+                + "</module>";
+    }
+
     private String read(Path file) throws Exception {
         return new String(Files.readAllBytes(file), StandardCharsets.UTF_8);
     }
@@ -586,6 +659,8 @@ class PolarionModuleImportServiceTest {
     private static class RecordingCreator implements PolarionWorkItemCreator {
         private final List<WorkItemCreateResult> results;
         private final java.util.ArrayList<String> titles = new java.util.ArrayList<String>();
+        private final java.util.ArrayList<String> types = new java.util.ArrayList<String>();
+        private final java.util.ArrayList<String> parentWkIds = new java.util.ArrayList<String>();
         private final java.util.ArrayList<String> authorIds = new java.util.ArrayList<String>();
         private final java.util.ArrayList<String> moduleURIs = new java.util.ArrayList<String>();
 
@@ -608,6 +683,8 @@ class PolarionModuleImportServiceTest {
         @Override
         public WorkItemCreateResult createOne(WorkItemCreateRequest request) {
             titles.add(request.getTitle());
+            types.add(request.getType());
+            parentWkIds.add(request.getParentWkId());
             authorIds.add(request.getAuthorId());
             moduleURIs.add(request.getModuleURI());
             if (titles.size() <= results.size()) {
@@ -622,6 +699,14 @@ class PolarionModuleImportServiceTest {
 
         List<String> getTitles() {
             return titles;
+        }
+
+        List<String> getTypes() {
+            return types;
+        }
+
+        List<String> getParentWkIds() {
+            return parentWkIds;
         }
 
         List<String> getAuthorIds() {

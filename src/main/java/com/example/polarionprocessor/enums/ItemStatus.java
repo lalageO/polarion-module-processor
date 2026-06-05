@@ -22,6 +22,9 @@ public enum ItemStatus {
     /** Work Item 创建失败。 */
     CREATE_FAILED,
 
+    /** 父级 Work Item 不可用，当前 item 未发起创建。 */
+    CREATE_BLOCKED,
+
     /** 已在 processed_module.xml 中完成替换。 */
     REPLACED,
 

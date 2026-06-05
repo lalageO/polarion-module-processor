@@ -16,13 +16,21 @@ public class PolarionImportItemResult {
     private String itemKey;
     private String startParagraphId;
     private String endParagraphId;
+    private String itemRole;
+    private String workItemType;
     private String outlineNo;
+    private Integer outlineDepth;
+    private String titleText;
     private String ruleTitle;
     private String aiTitle;
     private String title;
     private String description;
     private Boolean candidate;
     private String skipReason;
+    private Boolean hasChildOutline;
+    private String decisionReason;
+    private String parentOutlineNo;
+    private String parentWkId;
     private String aiStatus;
     private String aiPromptType;
     private String aiDebugRef;
@@ -78,12 +86,44 @@ public class PolarionImportItemResult {
         this.endParagraphId = endParagraphId;
     }
 
+    public String getItemRole() {
+        return itemRole;
+    }
+
+    public void setItemRole(String itemRole) {
+        this.itemRole = itemRole;
+    }
+
+    public String getWorkItemType() {
+        return workItemType;
+    }
+
+    public void setWorkItemType(String workItemType) {
+        this.workItemType = workItemType;
+    }
+
     public String getOutlineNo() {
         return outlineNo;
     }
 
     public void setOutlineNo(String outlineNo) {
         this.outlineNo = outlineNo;
+    }
+
+    public Integer getOutlineDepth() {
+        return outlineDepth;
+    }
+
+    public void setOutlineDepth(Integer outlineDepth) {
+        this.outlineDepth = outlineDepth;
+    }
+
+    public String getTitleText() {
+        return titleText;
+    }
+
+    public void setTitleText(String titleText) {
+        this.titleText = titleText;
     }
 
     public String getTitle() {
@@ -132,6 +172,38 @@ public class PolarionImportItemResult {
 
     public void setSkipReason(String skipReason) {
         this.skipReason = skipReason;
+    }
+
+    public Boolean getHasChildOutline() {
+        return hasChildOutline;
+    }
+
+    public void setHasChildOutline(Boolean hasChildOutline) {
+        this.hasChildOutline = hasChildOutline;
+    }
+
+    public String getDecisionReason() {
+        return decisionReason;
+    }
+
+    public void setDecisionReason(String decisionReason) {
+        this.decisionReason = decisionReason;
+    }
+
+    public String getParentOutlineNo() {
+        return parentOutlineNo;
+    }
+
+    public void setParentOutlineNo(String parentOutlineNo) {
+        this.parentOutlineNo = parentOutlineNo;
+    }
+
+    public String getParentWkId() {
+        return parentWkId;
+    }
+
+    public void setParentWkId(String parentWkId) {
+        this.parentWkId = parentWkId;
     }
 
     public String getAiStatus() {
