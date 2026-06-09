@@ -625,7 +625,7 @@ public class PolarionModuleImportService {
         jobResult.setStatus(JobStatus.REWRITING_XML.name());
         for (PolarionImportItemResult item : jobResult.getItems()) {
             if (ItemStatus.CREATED.name().equals(item.getStatus()) && TextUtils.hasText(item.getWorkItemId())) {
-                item.setReplacementHtml(macroRenderer.render(item.getWorkItemId()));
+                item.setReplacementHtml(macroRenderer.render(item));
             }
         }
         String processedXmlContent = moduleXmlRewriter.rewritePolarion(moduleXmlContent, jobResult.getItems());
@@ -768,7 +768,10 @@ public class PolarionModuleImportService {
         if (item == null || !TextUtils.hasText(item.getParentOutlineNo())) {
             return true;
         }
-        PolarionImportItemResult parent = findItemByOutline(jobResult.getItems(), item.getParentOutlineNo());
+        PolarionImportItemResult parent = findNearestParentHeadingByOutline(
+                jobResult == null ? null : jobResult.getItems(),
+                item,
+                item.getParentOutlineNo());
         if (parent == null || !TextUtils.hasText(parent.getWorkItemId())) {
             return false;
         }
@@ -776,17 +779,37 @@ public class PolarionModuleImportService {
         return true;
     }
 
-    private PolarionImportItemResult findItemByOutline(List<PolarionImportItemResult> items, String outlineNo) {
-        if (items == null || !TextUtils.hasText(outlineNo)) {
+    private PolarionImportItemResult findNearestParentHeadingByOutline(List<PolarionImportItemResult> items,
+                                                                       PolarionImportItemResult child,
+                                                                       String outlineNo) {
+        if (items == null || child == null || !TextUtils.hasText(outlineNo)) {
             return null;
         }
         String normalized = normalizeOutline(outlineNo);
-        for (PolarionImportItemResult item : items) {
-            if (item != null && normalized.equals(normalizeOutline(item.getOutlineNo()))) {
-                return item;
+        int childIndex = findItemIndex(items, child);
+        if (childIndex < 0) {
+            return null;
+        }
+        for (int i = childIndex - 1; i >= 0; i--) {
+            PolarionImportItemResult candidate = items.get(i);
+            if (isHeading(candidate)
+                    && normalized.equals(normalizeOutline(candidate.getOutlineNo()))) {
+                return candidate;
             }
         }
         return null;
+    }
+
+    private int findItemIndex(List<PolarionImportItemResult> items, PolarionImportItemResult target) {
+        if (items == null || target == null) {
+            return -1;
+        }
+        for (int i = 0; i < items.size(); i++) {
+            if (items.get(i) == target) {
+                return i;
+            }
+        }
+        return -1;
     }
 
     private void markCreateBlocked(PolarionImportItemResult item, String errorCode, String errorMessage) {

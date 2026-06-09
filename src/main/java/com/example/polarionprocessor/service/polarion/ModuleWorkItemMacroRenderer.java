@@ -1,5 +1,7 @@
 package com.example.polarionprocessor.service.polarion;
 
+import com.example.polarionprocessor.enums.PolarionItemRole;
+import com.example.polarionprocessor.model.polarion.PolarionImportItemResult;
 import org.springframework.stereotype.Service;
 
 /**
@@ -15,5 +17,23 @@ public class ModuleWorkItemMacroRenderer {
         return "<div id=\"polarion_wiki macro name=module-workitem;params=id="
                 + workItemId
                 + "\"></div>";
+    }
+
+    public String render(PolarionImportItemResult item) {
+        String workItemId = item == null ? null : item.getWorkItemId();
+        if (item == null || !PolarionItemRole.HEADING.name().equals(item.getItemRole())) {
+            return render(workItemId);
+        }
+        int headingLevel = headingLevel(item.getOutlineDepth());
+        return "<h" + headingLevel + " id=\"polarion_wiki macro name=module-workitem;params=id="
+                + workItemId
+                + "\"></h" + headingLevel + ">";
+    }
+
+    private int headingLevel(Integer outlineDepth) {
+        if (outlineDepth == null || outlineDepth < 1) {
+            return 1;
+        }
+        return Math.min(outlineDepth, 6);
     }
 }

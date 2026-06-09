@@ -424,8 +424,61 @@ class PolarionModuleImportServiceTest {
         assertTrue(resultJson.contains("\"parentWkId\" : \"FDP-H001\""));
         assertTrue(previewCsv.contains("itemRole,workItemType"));
         assertTrue(processedXml.contains("params=id=FDP-H001"));
+        assertTrue(processedXml.contains("<h1 id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H001\"></h1>"));
+        assertFalse(processedXml.contains("<div id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H001\"></div>"));
         assertTrue(processedXml.contains("params=id=FDP-R001"));
+        assertTrue(processedXml.contains("<div id=\"polarion_wiki macro name=module-workitem;params=id=FDP-R001\"></div>"));
         assertTrue(processedXml.contains("params=id=FDP-R002"));
+    }
+
+    @Test
+    void parentWkIdResolutionIgnoresRequirementWithSameOutlineAndUsesNearestHeading() throws Exception {
+        RecordingCreator creator = new RecordingCreator("FDP-H-SCOPE", "FDP-TOC1", "FDP-TOC2", "FDP-R11");
+        PolarionModuleImportService service = buildService(
+                creator,
+                new StaticDownloader(repeatedTopLevelOutlineSampleXml()),
+                new ModuleXmlRewriter());
+
+        PolarionModuleImportResponse response = service.importModule(request(false));
+
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals(Integer.valueOf(1), response.getHeadingCount());
+        assertEquals(Integer.valueOf(3), response.getRequirementCount());
+        assertEquals(Arrays.asList(
+                "heading",
+                "stakeholderrequirement",
+                "stakeholderrequirement",
+                "stakeholderrequirement"), creator.getTypes());
+        assertEquals(Arrays.asList(null, null, null, "FDP-H-SCOPE"), creator.getParentWkIds());
+
+        String resultJson = read(tempDir.resolve(response.getJobId()).resolve("import_result.json"));
+        assertTrue(resultJson.contains("\"outlineNo\" : \"1.1\""));
+        assertTrue(resultJson.contains("\"parentWkId\" : \"FDP-H-SCOPE\""));
+        assertFalse(resultJson.contains("\"parentWkId\" : \"FDP-TOC1\""));
+    }
+
+    @Test
+    void parentWkIdResolutionBlocksWhenNearestMatchingHeadingFailed() throws Exception {
+        RecordingCreator creator = new RecordingCreator(
+                WorkItemCreateResult.success("FDP-H-OLD"),
+                WorkItemCreateResult.failure("CREATE_FAILED_FOR_TEST", "new heading failed"),
+                WorkItemCreateResult.success("FDP-R-OLD"));
+        PolarionModuleImportService service = buildService(
+                creator,
+                new StaticDownloader(duplicateHeadingParentFailureSampleXml()),
+                new ModuleXmlRewriter());
+
+        PolarionModuleImportResponse response = service.importModule(request(false));
+
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals(Integer.valueOf(2), response.getCreatedCount());
+        assertEquals(Integer.valueOf(2), response.getFailedCount());
+        assertEquals(Arrays.asList("heading", "heading", "stakeholderrequirement"), creator.getTypes());
+        assertEquals(Arrays.asList(null, null, "FDP-H-OLD"), creator.getParentWkIds());
+
+        String resultJson = read(tempDir.resolve(response.getJobId()).resolve("import_result.json"));
+        assertTrue(resultJson.contains("\"status\" : \"CREATE_BLOCKED\""));
+        assertTrue(resultJson.contains("PARENT_HEADING_CREATE_FAILED"));
     }
 
     @Test
@@ -619,6 +672,33 @@ class PolarionModuleImportServiceTest {
                 + "    <p id=\"polarion_201\">3. Measurement points for rear-registration plate illuminating lamps (see paragraph 5.11.3.)</p>\n"
                 + "    <p id=\"polarion_202\">3.1. Category 1a - tall plate (340 x 240 mm)</p>\n"
                 + "    <p id=\"polarion_203\">3.2. Standard light distribution.</p>\n"
+                + "  ]]></field>\n"
+                + "</module>";
+    }
+
+    private String repeatedTopLevelOutlineSampleXml() {
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                + "<module>\n"
+                + "  <field id=\"title\">R171e2</field>\n"
+                + "  <field id=\"homePageContent\" text-type=\"text/html\"><![CDATA[\n"
+                + "    <p id=\"polarion_401\">Contents</p>\n"
+                + "    <p id=\"polarion_402\">1. Scope 5</p>\n"
+                + "    <p id=\"polarion_403\">2. Definitions 5</p>\n"
+                + "    <p id=\"polarion_404\">1.Scope</p>\n"
+                + "    <p id=\"polarion_405\">1.1 This UN Regulation applies to the type approval of vehicles.</p>\n"
+                + "  ]]></field>\n"
+                + "</module>";
+    }
+
+    private String duplicateHeadingParentFailureSampleXml() {
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                + "<module>\n"
+                + "  <field id=\"title\">R171e2</field>\n"
+                + "  <field id=\"homePageContent\" text-type=\"text/html\"><![CDATA[\n"
+                + "    <p id=\"polarion_501\">1. Old scope</p>\n"
+                + "    <p id=\"polarion_502\">1.1 Old requirement shall be created.</p>\n"
+                + "    <p id=\"polarion_503\">1.New scope</p>\n"
+                + "    <p id=\"polarion_504\">1.1 New requirement must not fall back to the old scope.</p>\n"
                 + "  ]]></field>\n"
                 + "</module>";
     }
