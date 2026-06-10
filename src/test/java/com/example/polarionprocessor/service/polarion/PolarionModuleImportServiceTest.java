@@ -432,8 +432,8 @@ class PolarionModuleImportServiceTest {
     }
 
     @Test
-    void parentWkIdResolutionIgnoresRequirementWithSameOutlineAndUsesNearestHeading() throws Exception {
-        RecordingCreator creator = new RecordingCreator("FDP-H-SCOPE", "FDP-TOC1", "FDP-TOC2", "FDP-R11");
+    void parentWkIdResolutionSkipsTocAndUsesNearestHeading() throws Exception {
+        RecordingCreator creator = new RecordingCreator("FDP-H-SCOPE", "FDP-R11");
         PolarionModuleImportService service = buildService(
                 creator,
                 new StaticDownloader(repeatedTopLevelOutlineSampleXml()),
@@ -443,18 +443,66 @@ class PolarionModuleImportServiceTest {
 
         assertTrue(response.getSuccess(), response.getMessage());
         assertEquals(Integer.valueOf(1), response.getHeadingCount());
-        assertEquals(Integer.valueOf(3), response.getRequirementCount());
+        assertEquals(Integer.valueOf(1), response.getRequirementCount());
         assertEquals(Arrays.asList(
                 "heading",
-                "stakeholderrequirement",
-                "stakeholderrequirement",
                 "stakeholderrequirement"), creator.getTypes());
-        assertEquals(Arrays.asList(null, null, null, "FDP-H-SCOPE"), creator.getParentWkIds());
+        assertEquals(Arrays.asList(null, "FDP-H-SCOPE"), creator.getParentWkIds());
 
         String resultJson = read(tempDir.resolve(response.getJobId()).resolve("import_result.json"));
         assertTrue(resultJson.contains("\"outlineNo\" : \"1.1\""));
         assertTrue(resultJson.contains("\"parentWkId\" : \"FDP-H-SCOPE\""));
-        assertFalse(resultJson.contains("\"parentWkId\" : \"FDP-TOC1\""));
+        assertFalse(resultJson.contains("Scope 5"));
+        assertFalse(resultJson.contains("Definitions 5"));
+    }
+
+    @Test
+    void tableOfContentsEntriesAreSkippedAndIntroductionRemainsUnchanged() throws Exception {
+        RecordingCreator creator = new RecordingCreator("FDP-H-DEFINITIONS", "FDP-R-INTRO", "FDP-R-DEF");
+        PolarionModuleImportService service = buildService(
+                creator,
+                new StaticDownloader(tableOfContentsSampleXml()),
+                new ModuleXmlRewriter());
+
+        PolarionModuleImportResponse response = service.importModule(request(false));
+
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals(Integer.valueOf(1), response.getHeadingCount());
+        assertEquals(Integer.valueOf(2), response.getRequirementCount());
+        assertEquals(Arrays.asList("heading", "stakeholderrequirement", "stakeholderrequirement"), creator.getTypes());
+        assertEquals(Arrays.asList(null, null, "FDP-H-DEFINITIONS"), creator.getParentWkIds());
+
+        Path jobDir = tempDir.resolve(response.getJobId());
+        String resultJson = read(jobDir.resolve("import_result.json"));
+        String processedXml = read(jobDir.resolve("module.xml"));
+        assertFalse(resultJson.contains("Scope 5"));
+        assertFalse(resultJson.contains("Type Approval Authorities 31"));
+        assertFalse(resultJson.contains("Introduction 3"));
+        assertFalse(resultJson.contains("\"description\" : \"15."));
+        assertFalse(resultJson.contains("font-size: 14pt"));
+        assertTrue(processedXml.contains("<span style=\"font-weight: bold;font-size: 14pt;line-height: 1.5;\">Introduction</span>"));
+    }
+
+    @Test
+    void visualHeadingStopsPreviousRequirementDescription() throws Exception {
+        RecordingCreator creator = new RecordingCreator("FDP-R-ONE", "FDP-R-TWO");
+        PolarionModuleImportService service = buildService(
+                creator,
+                new StaticDownloader(visualHeadingBoundarySampleXml()),
+                new ModuleXmlRewriter());
+
+        PolarionModuleImportResponse response = service.importModule(request(false));
+
+        assertTrue(response.getSuccess(), response.getMessage());
+        assertEquals(Integer.valueOf(0), response.getHeadingCount());
+        assertEquals(Integer.valueOf(2), response.getRequirementCount());
+        assertEquals(Arrays.asList("stakeholderrequirement", "stakeholderrequirement"), creator.getTypes());
+
+        Path jobDir = tempDir.resolve(response.getJobId());
+        String resultJson = read(jobDir.resolve("import_result.json"));
+        String processedXml = read(jobDir.resolve("module.xml"));
+        assertFalse(resultJson.contains("Introduction"));
+        assertTrue(processedXml.contains("<span style=\"font-weight: bold;font-size: 14pt;line-height: 1.5;\">Introduction</span>"));
     }
 
     @Test
@@ -686,6 +734,40 @@ class PolarionModuleImportServiceTest {
                 + "    <p id=\"polarion_403\">2. Definitions 5</p>\n"
                 + "    <p id=\"polarion_404\">1.Scope</p>\n"
                 + "    <p id=\"polarion_405\">1.1 This UN Regulation applies to the type approval of vehicles.</p>\n"
+                + "  ]]></field>\n"
+                + "</module>";
+    }
+
+    private String tableOfContentsSampleXml() {
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                + "<module>\n"
+                + "  <field id=\"title\">R171e2</field>\n"
+                + "  <field id=\"homePageContent\" text-type=\"text/html\"><![CDATA[\n"
+                + "    <p id=\"polarion_601\">UN Regulation on uniform provisions concerning the approval of vehicles</p>\n"
+                + "    <p id=\"polarion_602\">Contents</p>\n"
+                + "    <p id=\"polarion_603\"><i>Page</i></p>\n"
+                + "    <p id=\"polarion_604\" style=\"margin-left: 160px;\">Introduction 3</p>\n"
+                + "    <p id=\"polarion_605\" style=\"margin-left: 160px;\">1. Scope 5</p>\n"
+                + "    <p id=\"polarion_606\" style=\"margin-left: 160px;\">2. Definitions 5</p>\n"
+                + "    <p id=\"polarion_607\" style=\"margin-left: 160px;\">15. Names and addresses of Technical Services responsible for conducting approval tests and of Type Approval Authorities 31</p>\n"
+                + "    <p id=\"polarion_608\" style=\"margin-left: 160px;\">Annexes</p>\n"
+                + "    <p id=\"polarion_609\" style=\"margin-left: 160px;\">Appendix 1 - Model assessment form for electronic systems 43</p>\n"
+                + "    <p id=\"polarion_610\" style=\"margin-left: 120px;\"><span style=\"font-weight: bold;font-size: 14pt;line-height: 1.5;\">Introduction</span></p>\n"
+                + "    <p id=\"polarion_611\" style=\"margin-left: 80px;\">1. Advanced Driver Assistance Systems have been developed to support drivers and enhance road safety through information support, including warnings in safety-critical situations.</p>\n"
+                + "    <p id=\"polarion_612\" style=\"margin-left: 80px;\">2. Definitions</p>\n"
+                + "    <p id=\"polarion_613\" style=\"margin-left: 80px;\">2.1. Driver Control Assistance System means the hardware and software collectively capable of assisting a driver.</p>\n"
+                + "  ]]></field>\n"
+                + "</module>";
+    }
+
+    private String visualHeadingBoundarySampleXml() {
+        return "<?xml version=\"1.0\" encoding=\"UTF-8\"?>\n"
+                + "<module>\n"
+                + "  <field id=\"title\">R171e2</field>\n"
+                + "  <field id=\"homePageContent\" text-type=\"text/html\"><![CDATA[\n"
+                + "    <p id=\"polarion_701\">1. The first requirement shall keep its own description only.</p>\n"
+                + "    <p id=\"polarion_702\"><span style=\"font-weight: bold;font-size: 14pt;line-height: 1.5;\">Introduction</span></p>\n"
+                + "    <p id=\"polarion_703\">2. The second requirement shall be created separately.</p>\n"
                 + "  ]]></field>\n"
                 + "</module>";
     }

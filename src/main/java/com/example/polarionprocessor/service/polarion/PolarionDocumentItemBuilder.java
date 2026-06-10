@@ -26,8 +26,16 @@ public class PolarionDocumentItemBuilder {
     private static final String REASON_NOT_TITLE = "NOT_TITLE_LIKE";
     private static final int SHORT_ENGLISH_WORD_LIMIT = 12;
     private static final int SHORT_CJK_CHAR_LIMIT = 20;
+    private static final int VISUAL_HEADING_TEXT_MAX_LENGTH = 120;
     private static final Pattern ENGLISH_WORD_PATTERN = Pattern.compile("[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*");
     private static final Pattern CJK_PATTERN = Pattern.compile("[\\u4E00-\\u9FFF]");
+    private static final Pattern TOC_TOP_LEVEL_WITH_PAGE_PATTERN = Pattern.compile("^\\d+\\.\\s+.+\\s+\\d+$");
+    private static final Pattern TOC_INTRODUCTION_WITH_PAGE_PATTERN = Pattern.compile("(?i)^Introduction\\s+\\d+$");
+    private static final Pattern TOC_APPENDIX_WITH_PAGE_PATTERN = Pattern.compile("(?i)^Appendix\\s+\\d+\\b.+\\s+\\d+$");
+    private static final Pattern VISUAL_HEADING_BOLD_PATTERN =
+            Pattern.compile("(?is)(font-weight\\s*:\\s*(bold|[6-9]00)|<\\s*(b|strong)\\b)");
+    private static final Pattern VISUAL_HEADING_FONT_SIZE_PATTERN =
+            Pattern.compile("(?is)font-size\\s*:\\s*((1[3-9]|[2-9]\\d)(\\.\\d+)?\\s*pt|(1[6-9]|[2-9]\\d)(\\.\\d+)?\\s*px)");
 
     public List<PolarionImportItemResult> build(String moduleName,
                                                 String htmlContent,
@@ -66,15 +74,45 @@ public class PolarionDocumentItemBuilder {
         if (paragraphs == null) {
             return anchors;
         }
+        boolean insideTableOfContents = false;
         for (ParagraphInfo paragraph : paragraphs) {
             if (paragraph == null || Boolean.TRUE.equals(paragraph.getInsideTable())) {
                 continue;
+            }
+            String text = TextUtils.normalizeSpaces(paragraph.getSourceText());
+            if (isContentsHeading(text)) {
+                insideTableOfContents = true;
+                continue;
+            }
+            if (insideTableOfContents) {
+                if (!TextUtils.hasText(text) || isTableOfContentsLine(text)) {
+                    continue;
+                }
+                insideTableOfContents = false;
             }
             if (TextUtils.hasText(outlineNo(paragraph))) {
                 anchors.add(paragraph);
             }
         }
         return anchors;
+    }
+
+    private boolean isContentsHeading(String text) {
+        return "Contents".equalsIgnoreCase(TextUtils.normalizeSpaces(text))
+                || "Table of Contents".equalsIgnoreCase(TextUtils.normalizeSpaces(text));
+    }
+
+    private boolean isTableOfContentsLine(String text) {
+        String normalized = TextUtils.normalizeSpaces(text);
+        if (!TextUtils.hasText(normalized)) {
+            return true;
+        }
+        if ("Page".equalsIgnoreCase(normalized) || "Annexes".equalsIgnoreCase(normalized)) {
+            return true;
+        }
+        return TOC_TOP_LEVEL_WITH_PAGE_PATTERN.matcher(normalized).matches()
+                || TOC_INTRODUCTION_WITH_PAGE_PATTERN.matcher(normalized).matches()
+                || TOC_APPENDIX_WITH_PAGE_PATTERN.matcher(normalized).matches();
     }
 
     private void applyHeading(PolarionImportItemResult item, ParagraphInfo anchor) {
@@ -178,11 +216,32 @@ public class PolarionDocumentItemBuilder {
         int end = nextAnchorIndex < 0 ? paragraphs.size() : nextAnchorIndex;
         for (int i = anchorParagraphIndex + 1; i < end; i++) {
             ParagraphInfo paragraph = paragraphs.get(i);
-            if (paragraph != null && Boolean.TRUE.equals(paragraph.getInsideTable())) {
+            if (paragraph == null) {
+                continue;
+            }
+            if (Boolean.TRUE.equals(paragraph.getInsideTable()) || isVisualHeadingBoundary(paragraph)) {
                 return i;
             }
         }
         return end;
+    }
+
+    private boolean isVisualHeadingBoundary(ParagraphInfo paragraph) {
+        if (paragraph == null
+                || TextUtils.hasText(outlineNo(paragraph))
+                || !TextUtils.hasText(paragraph.getSourceText())) {
+            return false;
+        }
+        String text = TextUtils.normalizeSpaces(paragraph.getSourceText());
+        if (text.length() > VISUAL_HEADING_TEXT_MAX_LENGTH) {
+            return false;
+        }
+        String html = paragraph.getSourceOuterHtml();
+        if (!TextUtils.hasText(html)) {
+            return false;
+        }
+        return VISUAL_HEADING_BOLD_PATTERN.matcher(html).find()
+                && VISUAL_HEADING_FONT_SIZE_PATTERN.matcher(html).find();
     }
 
     private int findParagraphIndex(List<ParagraphInfo> paragraphs, ParagraphInfo target) {
