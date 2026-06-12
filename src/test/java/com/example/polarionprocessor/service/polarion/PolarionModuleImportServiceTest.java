@@ -478,6 +478,10 @@ class PolarionModuleImportServiceTest {
         assertFalse(resultJson.contains("Scope 5"));
         assertFalse(resultJson.contains("Type Approval Authorities 31"));
         assertFalse(resultJson.contains("Introduction 3"));
+        assertFalse(resultJson.contains("0. Introduction 4"));
+        assertFalse(resultJson.contains("Test procedure 11"));
+        assertFalse(resultJson.contains("Communication 18"));
+        assertFalse(resultJson.contains("Appendix 1 16"));
         assertFalse(resultJson.contains("\"description\" : \"15."));
         assertFalse(resultJson.contains("font-size: 14pt"));
         assertTrue(processedXml.contains("<span style=\"font-weight: bold;font-size: 14pt;line-height: 1.5;\">Introduction</span>"));
@@ -745,13 +749,20 @@ class PolarionModuleImportServiceTest {
                 + "  <field id=\"homePageContent\" text-type=\"text/html\"><![CDATA[\n"
                 + "    <p id=\"polarion_601\">UN Regulation on uniform provisions concerning the approval of vehicles</p>\n"
                 + "    <p id=\"polarion_602\">Contents</p>\n"
-                + "    <p id=\"polarion_603\"><i>Page</i></p>\n"
-                + "    <p id=\"polarion_604\" style=\"margin-left: 160px;\">Introduction 3</p>\n"
-                + "    <p id=\"polarion_605\" style=\"margin-left: 160px;\">1. Scope 5</p>\n"
-                + "    <p id=\"polarion_606\" style=\"margin-left: 160px;\">2. Definitions 5</p>\n"
-                + "    <p id=\"polarion_607\" style=\"margin-left: 160px;\">15. Names and addresses of Technical Services responsible for conducting approval tests and of Type Approval Authorities 31</p>\n"
-                + "    <p id=\"polarion_608\" style=\"margin-left: 160px;\">Annexes</p>\n"
-                + "    <p id=\"polarion_609\" style=\"margin-left: 160px;\">Appendix 1 - Model assessment form for electronic systems 43</p>\n"
+                + "    <p id=\"polarion_603\" style=\"text-align: right;\"><i>Page</i></p>\n"
+                + "    <p id=\"polarion_604\" style=\"margin-left: 80px;\">Regulation</p>\n"
+                + "    <p id=\"polarion_605\" style=\"margin-left: 80px;\">0. Introduction 4</p>\n"
+                + "    <p id=\"polarion_606\" style=\"margin-left: 160px;\">Introduction 3</p>\n"
+                + "    <p id=\"polarion_607\" style=\"margin-left: 160px;\">1. Scope 5</p>\n"
+                + "    <p id=\"polarion_608\" style=\"margin-left: 160px;\">2. Definitions 5</p>\n"
+                + "    <p id=\"polarion_609\" style=\"margin-left: 160px;\">6. Test procedure 11</p>\n"
+                + "    <p id=\"polarion_614\" style=\"margin-left: 160px;\">15. Names and addresses of Technical Services responsible for conducting approval tests and of Type Approval Authorities 31</p>\n"
+                + "    <p id=\"polarion_615\" style=\"margin-left: 160px;\">Appendix 1 16</p>\n"
+                + "    <p id=\"polarion_616\" style=\"margin-left: 160px;\">Annexes</p>\n"
+                + "    <p id=\"polarion_617\" style=\"margin-left: 160px;\">1 Communication 18</p>\n"
+                + "    <p id=\"polarion_618\" style=\"margin-left: 160px;\">2 Arrangements of approval marks 19</p>\n"
+                + "    <p id=\"polarion_619\" style=\"margin-left: 160px;\">3 Test method for determining blind spot boundary 20</p>\n"
+                + "    <p id=\"polarion_620\" style=\"margin-left: 160px;\">Appendix 1 - Model assessment form for electronic systems 43</p>\n"
                 + "    <p id=\"polarion_610\" style=\"margin-left: 120px;\"><span style=\"font-weight: bold;font-size: 14pt;line-height: 1.5;\">Introduction</span></p>\n"
                 + "    <p id=\"polarion_611\" style=\"margin-left: 80px;\">1. Advanced Driver Assistance Systems have been developed to support drivers and enhance road safety through information support, including warnings in safety-critical situations.</p>\n"
                 + "    <p id=\"polarion_612\" style=\"margin-left: 80px;\">2. Definitions</p>\n"

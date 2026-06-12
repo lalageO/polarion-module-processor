@@ -29,9 +29,11 @@ public class PolarionDocumentItemBuilder {
     private static final int VISUAL_HEADING_TEXT_MAX_LENGTH = 120;
     private static final Pattern ENGLISH_WORD_PATTERN = Pattern.compile("[A-Za-z0-9]+(?:[-'][A-Za-z0-9]+)*");
     private static final Pattern CJK_PATTERN = Pattern.compile("[\\u4E00-\\u9FFF]");
-    private static final Pattern TOC_TOP_LEVEL_WITH_PAGE_PATTERN = Pattern.compile("^\\d+\\.\\s+.+\\s+\\d+$");
+    private static final Pattern TOC_NUMBERED_WITH_PAGE_PATTERN = Pattern.compile("^\\d+(?:\\.\\d+)*\\.?\\s+.+\\s+\\d+$");
+    private static final Pattern TOC_LABEL_PATTERN = Pattern.compile("(?i)^(Page|Regulation|Annex|Annexes|Appendix|Appendices)$");
     private static final Pattern TOC_INTRODUCTION_WITH_PAGE_PATTERN = Pattern.compile("(?i)^Introduction\\s+\\d+$");
-    private static final Pattern TOC_APPENDIX_WITH_PAGE_PATTERN = Pattern.compile("(?i)^Appendix\\s+\\d+\\b.+\\s+\\d+$");
+    private static final Pattern TOC_APPENDIX_WITH_PAGE_PATTERN = Pattern.compile("(?i)^Appendix\\s+\\d+\\b.*\\s+\\d+$");
+    private static final Pattern TOC_CONTINUATION_WITH_PAGE_PATTERN = Pattern.compile("^.{1,180}\\s+\\d+$");
     private static final Pattern VISUAL_HEADING_BOLD_PATTERN =
             Pattern.compile("(?is)(font-weight\\s*:\\s*(bold|[6-9]00)|<\\s*(b|strong)\\b)");
     private static final Pattern VISUAL_HEADING_FONT_SIZE_PATTERN =
@@ -107,12 +109,13 @@ public class PolarionDocumentItemBuilder {
         if (!TextUtils.hasText(normalized)) {
             return true;
         }
-        if ("Page".equalsIgnoreCase(normalized) || "Annexes".equalsIgnoreCase(normalized)) {
+        if (TOC_LABEL_PATTERN.matcher(normalized).matches()) {
             return true;
         }
-        return TOC_TOP_LEVEL_WITH_PAGE_PATTERN.matcher(normalized).matches()
+        return TOC_NUMBERED_WITH_PAGE_PATTERN.matcher(normalized).matches()
                 || TOC_INTRODUCTION_WITH_PAGE_PATTERN.matcher(normalized).matches()
-                || TOC_APPENDIX_WITH_PAGE_PATTERN.matcher(normalized).matches();
+                || TOC_APPENDIX_WITH_PAGE_PATTERN.matcher(normalized).matches()
+                || TOC_CONTINUATION_WITH_PAGE_PATTERN.matcher(normalized).matches();
     }
 
     private void applyHeading(PolarionImportItemResult item, ParagraphInfo anchor) {
