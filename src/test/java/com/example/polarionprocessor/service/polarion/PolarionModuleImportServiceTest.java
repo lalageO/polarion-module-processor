@@ -424,7 +424,7 @@ class PolarionModuleImportServiceTest {
         assertTrue(resultJson.contains("\"parentWkId\" : \"FDP-H001\""));
         assertTrue(previewCsv.contains("itemRole,workItemType"));
         assertTrue(processedXml.contains("params=id=FDP-H001"));
-        assertTrue(processedXml.contains("<h1 id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H001\"></h1>"));
+        assertTrue(processedXml.contains("<h2 id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H001\"></h2>"));
         assertFalse(processedXml.contains("<div id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H001\"></div>"));
         assertTrue(processedXml.contains("params=id=FDP-R001"));
         assertTrue(processedXml.contains("<div id=\"polarion_wiki macro name=module-workitem;params=id=FDP-R001\"></div>"));

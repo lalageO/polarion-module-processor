@@ -32,8 +32,8 @@ public class ModuleWorkItemMacroRenderer {
 
     private int headingLevel(Integer outlineDepth) {
         if (outlineDepth == null || outlineDepth < 1) {
-            return 1;
+            return 2;
         }
-        return Math.min(outlineDepth, 6);
+        return Math.min(outlineDepth + 1, 6);
     }
 }

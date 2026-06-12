@@ -13,10 +13,10 @@ class ModuleWorkItemMacroRendererTest {
     @Test
     void rendersHeadingWithHtmlHeadingLevelFromOutlineDepth() {
         assertEquals(
-                "<h1 id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H1\"></h1>",
+                "<h2 id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H1\"></h2>",
                 renderer.render(heading("FDP-H1", 1)));
         assertEquals(
-                "<h2 id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H2\"></h2>",
+                "<h3 id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H2\"></h3>",
                 renderer.render(heading("FDP-H2", 2)));
         assertEquals(
                 "<h6 id=\"polarion_wiki macro name=module-workitem;params=id=FDP-H7\"></h6>",
